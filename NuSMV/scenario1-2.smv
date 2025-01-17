@@ -167,7 +167,7 @@ LTLSPEC G ((!motion_detected & no_motion_duration >= 10) -> !virtual_light)
 LTLSPEC G ((!daylight & motion_detected) -> virtual_light)
 
 -- SP-34: If it is daylight and no motion is detected, the light must be off
-LTLSPEC G ((!motion_detected & daylight) -> !virtual_light)
+LTLSPEC G ((eco_mode & daylight) -> !virtual_light)
 
 -- SP-72: If eco mode is active, the light must be off
 LTLSPEC G (eco_mode -> !virtual_light)

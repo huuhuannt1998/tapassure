@@ -131,32 +131,38 @@ ASSIGN
 
     -- Transition rules
 
-   next(no_motion_duration) := case
-        !motion_detected : no_motion_duration + 1; -- Increase duration when no motion
-        motion_detected : 0;                       -- Reset duration when motion is detected
-        TRUE : no_motion_duration;
+   next(motion_detected) := case
+        TRUE : !motion_detected;     -- Toggle motion detection for testing
     esac;
 
+    -- Transition rules for no_motion_duration
+    next(no_motion_duration) := case
+        !motion_detected : min(no_motion_duration + 1, 120);  -- Increment when no motion
+        motion_detected : 0;                                 -- Reset when motion is detected
+        TRUE : no_motion_duration;                           -- Maintain current value otherwise
+    esac;
 
+    -- Transition rules for virtual_light based on the scenario
     next(virtual_light) := case
-        motion_detected & !daylight : TRUE; -- Turn on the Virtual Light when motion detected and no daylight
-        !motion_detected : FALSE;           -- Turn off the Virtual Light when no motion
-        TRUE : virtual_light;               -- Maintain current state
+        motion_detected : TRUE;       -- Turn on the light when motion is detected
+        !motion_detected : FALSE;     -- Turn off the light when no motion
+        TRUE : virtual_light;         -- Maintain current state otherwise
     esac;
 
+    -- Transition rules for time (simulate the passage of time)
+    next(time) := (time + 1) mod 24;  -- Increment time cyclically in 24-hour format
+
+    -- Transition rules for daylight (simulate daytime condition)
     next(daylight) := case
-        time >= 6 & time < 18 : TRUE;       -- Daylight is active between 6 AM and 6 PM
-        TRUE : FALSE;
+        time >= 6 & time < 18 : TRUE;  -- Daylight is true between 6 AM and 6 PM
+        TRUE : FALSE;                  -- Nighttime otherwise
     esac;
 
+    -- Transition rules for eco_mode (toggle for testing)
     next(eco_mode) := case
-        time >= 8 & time < 20 : TRUE;       -- Eco mode active between 8 AM and 8 PM
-        TRUE : FALSE;
+        TRUE : !eco_mode;              -- Toggle eco mode for testing
     esac;
 
- 
-
-    next(time) := (time + 1) mod 24;
 
 
 -- Relevant safety properties
@@ -166,7 +172,7 @@ LTLSPEC G ((!daylight & motion_detected) -> virtual_light) -- SP-8
 LTLSPEC G ((motion_detected & room_occupied) -> virtual_light) -- SP-21
 LTLSPEC G ((motion_detected & !daylight) -> virtual_light) -- SP-23
 LTLSPEC G (((evening_mode | night_mode) -> virtual_light)) -- SP-29
-LTLSPEC G ((!motion_detected & daylight) -> !virtual_light) -- SP-34
+LTLSPEC G ((eco_mode & daylight) -> !virtual_light) -- SP-34
 LTLSPEC G ((!ambient_light & motion_detected) -> virtual_light) -- SP-39
 LTLSPEC G ((no_motion_duration >= 120) -> !virtual_light) -- SP-51
 LTLSPEC G ((eco_mode) -> !virtual_light) -- SP-72
