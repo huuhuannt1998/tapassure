@@ -169,11 +169,11 @@ ASSIGN
 
 LTLSPEC G ((!motion_detected & no_motion_duration >= 10) -> !virtual_light) -- SP-2
 LTLSPEC G ((!daylight & motion_detected) -> virtual_light) -- SP-8
-LTLSPEC G ((motion_detected & room_occupied) -> virtual_light) -- SP-21
+LTLSPEC G ((motion_detected & room_occupied) -> virtual_light) -- SP-21 *
 LTLSPEC G ((motion_detected & !daylight) -> virtual_light) -- SP-23
 LTLSPEC G (((evening_mode | night_mode) -> virtual_light)) -- SP-29
 LTLSPEC G ((eco_mode & daylight) -> !virtual_light) -- SP-34
-LTLSPEC G ((!ambient_light & motion_detected) -> virtual_light) -- SP-39
+LTLSPEC G ((!ambient_light & motion_detected) -> virtual_light) -- SP-39 *
 LTLSPEC G ((no_motion_duration >= 120) -> !virtual_light) -- SP-51
 LTLSPEC G ((eco_mode) -> !virtual_light) -- SP-72
 LTLSPEC G ((!garage_activity_detected) -> !virtual_light) -- SP-76

@@ -52,7 +52,7 @@ def run_nusmv_and_analyze(nusmv_path, smv_file):
 if __name__ == "__main__":
     nusmv_path = r"C:\Program Files\NuSMV\NuSMV-2.7.0-win64\bin\NuSMV.exe" 
 
-    smv_file = "scenario1-1.smv"
+    smv_file = "scenario1-2.smv"
 
     summary = run_nusmv_and_analyze(nusmv_path, smv_file)
 
