@@ -1,0 +1,399 @@
+1. When motion is detected by the Motion Sensor, turn on the Virtual Light.
+
+2. Turn off Virtual A/C 1 when the Virtual Motion Sensor detects no motion.
+
+3. At sunset, turn on Virtual TV 1 and set Virtual Fan 1 to medium speed.
+
+4. If Motion Sensor detects movement while away, turn on all Virtual Lights and send an alert.
+
+5. At 7 AM, turn on Virtual Fridge 1 and Virtual A/C 2 to prepare the kitchen.
+
+6. When Virtual Switch is turned on, activate Virtual Fan 5 and Virtual Light.
+
+7. When Centralite Outlet 1 detects the washer is off, send a notification.
+
+8. When Virtual TV 4 is turned on, dim Virtual Lights to 50%.
+
+9. When leaving home, turn off all devices: Virtual A/C 3, Virtual Fan 3, and Virtual Light.
+
+10. If Motion Sensor detects high temperature, turn on Virtual A/C 1 and Virtual Fan 2.
+
+11. Turn off all Virtual Lights when no motion is detected for 10 minutes.
+
+12. Turn on Virtual Fan 3 when the room temperature exceeds 75°F.
+
+13. Dim Virtual Light to 30% at 8 PM every evening.
+
+14. Turn on Virtual A/C 2 and Virtual Fan 2 when the Virtual Motion Sensor detects movement in the living room.
+
+15. Turn off Virtual TV 3 when no one is detected in the room for 15 minutes.
+
+16. Use the Motion Sensor to trigger Virtual Light and Virtual A/C 1 when entering the bedroom.
+
+17. At sunrise, turn off Virtual Fan 1 and Virtual Light in the kitchen.
+
+18. Turn on Virtual TV 2 and set Virtual Fan 5 to low when "movie mode" is activated.
+
+19. Turn off Virtual A/C 3 when all doors are closed and no motion is detected in the house.
+
+20. Set Virtual Light to red when the Motion Sensor detects unusual activity late at night.(*)
+
+21. Turn on Virtual Fridge 1 and Virtual Light when the Virtual Motion Sensor detects movement in the dining room.
+
+22. If Motion Sensor detects temperature above 80°F, activate Virtual A/C 2 and Virtual Fan 4.
+
+23. Turn on Virtual TV 1 and mute it if no movement is detected in the living room for 5 minutes.
+
+24. Turn off Virtual Fan 2 at 10 PM every night to conserve energy.
+
+25. Set Virtual Light to a warm white color when the Motion Sensor detects motion in the bedroom. (*)
+
+26. Turn on Virtual Fan 5 and Virtual TV 3 when someone enters the living room during the day.
+
+27. Turn off Virtual A/C 1 if the windows are detected to be open.
+
+28. Dim all Virtual Lights to 10% at midnight for nighttime mode.
+
+29. Activate Virtual Switch to enable a "party mode" where Virtual TV 4 and Virtual Fan 3 turn on.
+
+30. Set Virtual Light to a blue color if the temperature drops below 65°F. (*)
+
+31. Use Virtual A/C 3 to regulate the temperature in the dining room when the Motion Sensor detects activity.
+
+32. Turn off Virtual TV 2 and Virtual Fan 1 after 11 PM when no one is in the room.
+
+33. Activate Virtual Light at 50% when the Virtual Motion Sensor detects movement near the front door.(*)
+
+34. Turn off all devices in the house when the Virtual Switch is turned off.
+
+35. Turn on Virtual TV 4 and Virtual Fan 3 for 30 minutes after detecting motion in the living room. (*)
+
+36. Activate Virtual Light and Virtual Fan 2 when someone enters the bathroom at night.
+
+37. Set Virtual A/C 2 to energy-saving mode when the Virtual Motion Sensor detects no activity for an hour. (*)
+
+38. Turn on Virtual Fan 4 when the Virtual Motion Sensor detects activity in the study room.
+
+39. Turn off Virtual A/C 1, Virtual TV 1, and Virtual Light at 9 AM every weekday.
+
+40. When Virtual Fridge 1 door is left open for more than 2 minutes, trigger a Virtual Light alert.
+
+Turn on Virtual Light in the hallway when Motion Sensor detects motion after sunset.
+
+Turn off Virtual Fan 5 and Virtual A/C 3 if no motion is detected in the house for 30 minutes.
+
+Activate Virtual TV 3 and Virtual Fan 1 when "game mode" is enabled.
+
+Turn off Virtual Fan 2 and dim Virtual Light when everyone leaves the room.
+
+Use Virtual A/C 2 to adjust the temperature if the Motion Sensor detects rapid temperature changes.
+
+Turn on Virtual TV 4 and Virtual Fan 3 if the Virtual Motion Sensor detects activity during the afternoon.
+
+Activate Virtual Light in the kitchen at 6 AM for the morning routine.
+
+Use Virtual Switch to enable "away mode," turning off all Virtual Fans and Virtual TVs.
+
+Turn on Virtual Light in the garage when the Motion Sensor detects movement.
+
+Turn off Virtual A/C 1 and Virtual Fan 1 when the Virtual Motion Sensor detects the room is empty.
+
+Turn on Virtual TV 1 and Virtual Fan 4 when the Motion Sensor detects someone entering the living room in the evening.
+
+Set Virtual Light to 100% brightness when Virtual Motion Sensor detects movement during the day.
+
+Turn off Virtual A/C 2 after 30 minutes if no motion is detected in the room.
+
+Dim Virtual Light to 20% when "sleep mode" is activated at night.
+
+Activate Virtual Fan 2 and Virtual Light when someone enters the kitchen during lunchtime.
+
+Turn off Virtual TV 3 and Virtual Fan 5 when Virtual Motion Sensor detects no activity for 20 minutes.
+
+Set Virtual Light to green when Virtual Switch is turned on to indicate "study mode."
+
+Turn on Virtual A/C 3 and Virtual Fan 1 to cool the living room if Motion Sensor detects a rise in temperature.
+
+Turn off all Virtual Lights and Virtual Fans when "bedtime mode" is activated.
+
+Activate Virtual TV 4 and Virtual Light for 1 hour after detecting motion in the entertainment room.
+
+Set Virtual Fan 3 to medium speed when Virtual Motion Sensor detects someone in the study area.
+
+Turn on Virtual Light and Virtual Fan 4 when the Motion Sensor detects someone entering the bedroom in the evening.
+
+Set Virtual A/C 1 to "eco mode" when the Motion Sensor detects no movement for 15 minutes.
+
+Turn off Virtual TV 2 and Virtual Fan 3 when no motion is detected for 1 hour.
+
+Activate Virtual Light in the bathroom at 50% brightness when someone enters at night.
+
+Turn on Virtual A/C 2 and Virtual Fan 5 to cool the dining room when the temperature exceeds 78°F.
+
+Turn off Virtual Light when "movie mode" is enabled to reduce glare.
+
+Use Virtual Motion Sensor to dim all lights in the house after 11 PM.
+
+Turn on Virtual TV 1 and Virtual Fan 2 when "news mode" is activated in the morning.
+
+Activate Virtual Light in the living room when the Motion Sensor detects movement at sunset.
+
+Turn off Virtual A/C 3 and Virtual Fan 4 if no activity is detected for 30 minutes in the living room.
+
+Set Virtual Light to a yellow color when Virtual Motion Sensor detects movement in the hallway.
+
+Turn on Virtual TV 3 and Virtual Fan 1 when "family mode" is activated in the evening.
+
+Turn off Virtual Light in the study area after no activity is detected for 20 minutes.
+
+Use Virtual A/C 1 to cool the bedroom when the Motion Sensor detects a temperature above 75°F.
+
+Turn on Virtual Light in the kitchen at 6 AM as part of the "morning routine."
+
+Activate Virtual Fan 5 and Virtual TV 2 when "entertainment mode" is enabled.
+
+Turn off all Virtual Lights and Virtual Fans in the house when "vacation mode" is activated.
+
+Set Virtual Light to blue when Virtual Switch is turned on to indicate "relaxation mode."
+
+Use Virtual Motion Sensor to adjust Virtual A/C 2 based on the current room occupancy.
+
+Turn on Virtual Light in the garage when the Motion Sensor detects movement during nighttime.
+
+Turn off Virtual Fan 2 and Virtual A/C 3 when no motion is detected in the room for 1 hour.
+
+Activate Virtual TV 4 and Virtual Fan 1 for 2 hours after detecting motion in the entertainment room.
+
+Set Virtual Light to 10% brightness when the Motion Sensor detects no activity after midnight.
+
+Turn on Virtual A/C 1 and Virtual Fan 3 to cool the study room when the Motion Sensor detects motion.
+
+Turn off Virtual TV 1 and Virtual Fan 4 when no one is detected in the room for 20 minutes.
+
+Activate Virtual Light in the hallway at 70% brightness when someone enters after dark.
+
+Use Virtual Switch to enable "work mode," turning on Virtual Light and Virtual Fan 5 in the home office.
+
+Turn on Virtual TV 2 and Virtual Fan 3 when the Motion Sensor detects movement during the day.
+
+Turn off all Virtual Lights and Virtual TVs when "power-saving mode" is activated.
+
+Turn on Virtual Light and set it to 80% brightness when the Motion Sensor detects movement in the dining room during dinner time.
+
+Turn off Virtual Fan 3 and Virtual A/C 2 when "away mode" is activated.
+
+Activate Virtual TV 3 and Virtual Fan 4 when "game night mode" is enabled.
+
+Set Virtual Light to 40% brightness when the Virtual Motion Sensor detects movement in the hallway at night.
+
+Turn off Virtual A/C 1 when all windows are detected to be open for ventilation.
+
+Turn on Virtual TV 4 and dim Virtual Light to 20% when "movie night mode" is activated.
+
+Use Virtual Fan 5 to circulate air in the bedroom if the Motion Sensor detects a temperature above 80°F.
+
+Turn off all Virtual Lights and Virtual Fans when no motion is detected in the house for 1 hour.
+
+Set Virtual Light to a purple hue when the Virtual Switch is turned on to indicate "reading mode."
+
+Activate Virtual A/C 3 and Virtual Light when someone enters the living room during a hot afternoon.
+
+Turn on Virtual Fan 2 and set it to high speed when the Motion Sensor detects activity in the kitchen during cooking.
+
+Dim Virtual Light to 30% brightness when "bedtime mode" is activated in the bedroom.
+
+Turn off Virtual TV 2 and Virtual A/C 1 when everyone leaves the house.
+
+Use Virtual Motion Sensor to activate Virtual Light in the entryway when someone arrives home.
+
+Turn on Virtual TV 1 and Virtual Fan 4 when "relaxation mode" is enabled after work.
+
+Turn off all Virtual Lights, Virtual Fans, and Virtual TVs when "security mode" is activated.
+
+Activate Virtual A/C 2 to adjust the temperature in the living room when the Motion Sensor detects activity.
+
+Set Virtual Light to red when the Motion Sensor detects unusual activity late at night.
+
+Turn off Virtual Fan 3 and Virtual Light in the study area after no activity is detected for 15 minutes.
+
+Turn on Virtual Light in the bathroom at 50% brightness when the Motion Sensor detects motion.
+
+Turn off Virtual A/C 3 if no activity is detected in the dining room for 45 minutes.
+
+Use Virtual Fan 1 to ventilate the hallway when the Motion Sensor detects a high temperature.
+
+Set Virtual Light to green when "exercise mode" is activated in the home gym.
+
+Turn on Virtual TV 3 and Virtual Fan 5 when the Motion Sensor detects activity during the morning.
+
+Turn off all Virtual Lights and Virtual Fans when "goodnight mode" is activated.
+
+Activate Virtual A/C 1 and Virtual Fan 2 when the room temperature exceeds 78°F.
+
+Use Virtual Light to create a calming ambiance in the living room by setting it to blue at 9 PM.
+
+Turn off Virtual TV 4 and Virtual A/C 2 when "meeting mode" is activated in the home office.
+
+Activate Virtual Fan 4 when the Motion Sensor detects activity in the study during the evening.
+
+Set Virtual Light to yellow when the Virtual Switch is turned on to indicate "study mode."
+
+Turn on Virtual TV 1 and set Virtual Fan 3 to medium speed when "movie time" is enabled.
+
+Turn off Virtual A/C 2 and Virtual Light when the house is empty for more than 2 hours.
+
+Dim Virtual Light to 15% when "romantic mode" is activated in the dining room.
+
+Turn on Virtual A/C 1 to cool the bedroom when the Motion Sensor detects movement.
+
+Set Virtual Light to white when "cleaning mode" is activated in the living room.
+
+Turn off all Virtual Fans and Virtual TVs when "quiet mode" is enabled in the house.
+
+Activate Virtual Fan 5 and Virtual Light when someone enters the garage during the evening.
+
+Turn on Virtual TV 2 and Virtual Fan 1 when "news mode" is activated in the morning.
+
+Set Virtual Light to a dim orange hue when the Motion Sensor detects no activity in the hallway.
+
+Turn off Virtual A/C 3 and Virtual Light in the study when "work mode" is enabled.
+
+Turn on Virtual TV 4 and Virtual Fan 4 for 1 hour when the Motion Sensor detects activity during the day.
+
+Use Virtual Fan 2 to ventilate the living room if the Motion Sensor detects activity and high humidity.
+
+Set Virtual Light to a soft yellow when "reading mode" is activated in the study.
+
+Turn off Virtual TV 3 and Virtual A/C 1 when "outdoor mode" is activated in the house.
+
+Turn on Virtual Fan 3 and Virtual Light in the bedroom when the Motion Sensor detects activity.
+
+Activate Virtual A/C 2 to maintain a constant temperature when "focus mode" is enabled.
+
+Set Virtual Light to pink when "party mode" is activated in the entertainment room.
+
+Turn off all Virtual Lights and Virtual Fans when the Virtual Motion Sensor detects no movement for 2 hours.
+
+Turn on Virtual TV 1 and Virtual Fan 5 when the Motion Sensor detects activity in the guest room.
+
+Use Virtual Switch to enable "workout mode," turning on Virtual Light and Virtual Fan 4 in the home gym.
+
+Turn on Virtual Light in the hallway when the Motion Sensor detects movement during the evening.
+
+Turn off Virtual Fan 3 and Virtual A/C 1 if no activity is detected in the room for 30 minutes.
+
+Set Virtual Light to 20% brightness when "night mode" is enabled.
+
+Activate Virtual TV 3 and Virtual Fan 2 when "movie night" is triggered at 8 PM.
+
+Turn off all Virtual Lights and Virtual Fans when "away mode" is activated.
+
+Turn on Virtual A/C 2 to maintain a cool temperature in the dining room when activity is detected.
+
+Set Virtual Light to a blue hue when the Motion Sensor detects movement in the bedroom at night.
+
+Turn off Virtual TV 4 and Virtual Fan 4 when "quiet mode" is enabled in the study.
+
+Activate Virtual Light at 70% brightness in the kitchen when "cooking mode" is enabled.
+
+Turn on Virtual TV 1 and Virtual Fan 1 when the Motion Sensor detects activity in the living room.
+
+Turn off Virtual A/C 3 and Virtual Fan 5 if the Motion Sensor detects no activity for 2 hours.
+
+Dim Virtual Light to 15% when the Virtual Switch is set to "relaxation mode."
+
+Turn on Virtual Fan 3 and Virtual Light in the guest room when activity is detected during the evening.
+
+Use Virtual A/C 2 to adjust the temperature in the home office when the Motion Sensor detects activity.
+
+Set Virtual Light to green when "focus mode" is enabled in the study area.
+
+Turn off Virtual TV 2 and Virtual Fan 1 when "power-saving mode" is activated in the house.
+
+Activate Virtual Light in the garage when the Motion Sensor detects movement after sunset.
+
+Turn on Virtual TV 4 and Virtual Fan 2 when "news mode" is triggered in the morning.
+
+Use Virtual Light to create a soft yellow ambiance in the living room for reading time.
+
+Turn off Virtual A/C 1 and Virtual Fan 4 in the bedroom when no activity is detected overnight.
+
+Turn on Virtual TV 3 and Virtual Fan 5 for 30 minutes when the Motion Sensor detects activity in the playroom.
+
+Set Virtual Light to a pink hue when "party mode" is activated in the entertainment area.
+
+Turn off all Virtual Fans and Virtual Lights when "sleep mode" is activated in the house.
+
+Use Virtual A/C 1 to cool the bedroom to a comfortable temperature when movement is detected.
+
+Turn on Virtual Fan 4 and Virtual Light when the Motion Sensor detects movement in the dining room.
+
+Activate Virtual TV 1 and Virtual Light when "evening relaxation mode" is enabled.
+
+Turn off Virtual A/C 2 and Virtual Fan 2 when "eco mode" is triggered during the day.
+
+Set Virtual Light to orange when the Motion Sensor detects movement in the hallway at sunset.
+
+Turn on Virtual TV 2 and Virtual Fan 3 for 1 hour when "entertainment mode" is enabled.
+
+Turn off Virtual A/C 3 and dim Virtual Light in the study when "reading mode" is triggered.
+
+Turn on Virtual Fan 5 and Virtual TV 1 when activity is detected in the guest bedroom.
+
+Use Virtual Light to create a warm ambiance in the dining room by setting it to yellow at 7 PM.
+
+Turn off Virtual Fan 1 and Virtual A/C 2 when "power-saving mode" is activated during the day.
+
+Activate Virtual TV 4 and Virtual Fan 4 when "game mode" is enabled in the entertainment room.
+
+Set Virtual Light to red when the Motion Sensor detects unusual activity late at night.
+
+Turn off all Virtual Lights and Virtual Fans when the Virtual Switch is turned off.
+
+Turn on Virtual TV 3 and Virtual Fan 2 when "family mode" is triggered in the evening.
+
+Dim Virtual Light to 10% when "nightlight mode" is activated in the children's bedroom.
+
+Use Virtual A/C 1 to maintain a comfortable temperature in the living room during the afternoon.
+
+Turn on Virtual Fan 3 and Virtual Light in the study when the Motion Sensor detects activity.
+
+Activate Virtual TV 2 and Virtual Light when "news mode" is triggered in the morning.
+
+Turn off Virtual A/C 1 and Virtual Fan 5 if the Motion Sensor detects no activity for 1 hour.
+
+Set Virtual Light to a calming blue when "relaxation mode" is enabled in the living room.
+
+Turn on Virtual Fan 4 and Virtual TV 1 when "movie night" is enabled in the home theater.
+
+Use Virtual Light to create a dim orange ambiance in the bedroom for bedtime.
+
+Turn off all Virtual Lights, Virtual Fans, and Virtual TVs when "security mode" is enabled.
+
+Activate Virtual A/C 3 to cool the dining room when the Motion Sensor detects movement.
+
+Set Virtual Light to white when "cleaning mode" is enabled in the living room.
+
+Turn on Virtual TV 4 and Virtual Fan 2 for 2 hours when the Motion Sensor detects activity.
+
+Turn off Virtual A/C 2 and dim Virtual Light in the study area when "focus mode" is enabled.
+
+Use Virtual Fan 1 to ventilate the kitchen when the Motion Sensor detects high humidity.
+
+Activate Virtual TV 3 and Virtual Fan 3 when "sports mode" is triggered in the entertainment room.
+
+Set Virtual Light to a soft yellow when the Motion Sensor detects movement in the hallway.
+
+Turn off Virtual Fan 4 and Virtual Light in the bedroom when "night mode" is enabled.
+
+Turn on Virtual A/C 1 and Virtual Light in the living room when the Motion Sensor detects activity.
+
+Activate Virtual TV 2 and Virtual Fan 5 when "entertainment mode" is enabled.
+
+Dim Virtual Light to 30% when "evening mode" is triggered in the dining room.
+
+Turn off Virtual A/C 3 and Virtual Fan 2 when "eco mode" is activated at night.
+
+Set Virtual Light to green when the Motion Sensor detects movement in the study room.
+
+Turn on Virtual TV 1 and Virtual Fan 1 when "news mode" is triggered in the morning.

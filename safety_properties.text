@@ -1,0 +1,200 @@
+SP-1: Virtual A/C 1 must not turn on when windows are open.
+
+SP-2: Virtual Light must turn off automatically if no motion is detected for 10 minutes.
+
+SP-3: Virtual Fan 3 must not run when the room temperature is below 68°F.
+
+SP-4: Virtual TV 1 must not turn on between midnight and 6 AM.
+
+SP-5: All Virtual Lights must dim to 20% brightness after 11 PM.
+
+SP-6: Virtual A/C 2 must not run if the temperature is below 65°F.
+
+SP-7: Virtual Motion Sensor must not trigger devices in "away mode."
+
+SP-8: Virtual Light must not turn on during daylight hours unless motion is detected.
+
+SP-9: Multiple Virtual Fans must not run in the same room simultaneously.
+
+SP-10: Virtual TV 4 must turn off if no activity is detected for 30 minutes.
+
+SP-11: Virtual Fridge 1 must not remain open for more than 2 minutes.
+
+SP-12: Virtual A/C 3 must deactivate if the room temperature drops below 70°F.
+
+SP-13: Virtual A/C 2 must not exceed 78°F.
+
+SP-14
+
+SP-15: Virtual Fan 5 must not remain on for more than 1 hour without activity detection.
+
+SP-16: Virtual Light must dim automatically when "sleep mode" is activated.
+
+SP-17: Virtual Fan 4 must operate at medium speed if the temperature exceeds 85°F.
+
+SP-18: Virtual Light must not change brightness more than once every 2 seconds.
+
+SP-19: Virtual TV 3 must mute automatically if no activity is detected for 15 minutes.
+
+SP-20: Virtual A/C 1 must switch to "eco mode" when no one is home.
+
+SP-21: Virtual Motion Sensor must activate Virtual Light only in occupied rooms.
+
+SP-22: 
+
+SP-23: Virtual Light must activate only when motion is detected in dark areas.
+
+SP-24: Virtual Fridge 1 must not remain in cooling mode for more than 30 minutes at a time.
+
+SP-25: Virtual Fan 1 must deactivate when Virtual A/C 2 is running.
+
+SP-26: Virtual Switch must not activate multiple devices simultaneously in the same room.
+
+SP-27: Virtual Fan 5 must not operate in "quiet mode."
+
+SP-28: Virtual TV 1 must switch to low brightness after 9 PM.
+
+SP-29: Virtual Light must activate only during "evening mode" or "night mode."
+
+SP-30: Virtual Fan 2 must turn off automatically after 15 minutes of inactivity.
+
+SP-31: Virtual Motion Sensor must not trigger multiple devices simultaneously.
+
+SP-32: Virtual TV 4 must deactivate if the room is empty for more than 30 minutes.
+
+SP-33: Virtual Fan 3 must not exceed high speed unless triggered by temperature sensors.
+
+SP-34: Virtual Light must not remain on during the day in "eco mode."
+
+SP-35: Virtual A/C 3 must deactivate if all doors in the room are closed.
+
+SP-36: Virtual Light must turn on at 50% brightness during "movie mode."
+
+SP-37: Virtual TV 2 must not switch channels more than three times per minute.
+
+SP-38: Virtual Fan 1 must deactivate automatically during "vacation mode."
+
+SP-39: Virtual Motion Sensor must not trigger Virtual Light unless ambient light is low.
+
+SP-40: Virtual Switch must not control more than two devices at a time.
+
+SP-41: Virtual A/C 1 must deactivate if no activity is detected for 1 hour.
+
+SP-42: Virtual TV 3 must not switch to high volume after 10 PM.
+
+SP-43: Virtual Light must activate at 30% brightness during "quiet mode."
+
+SP-44: Virtual Fan 4 must not operate if the room temperature drops below 72°F.
+
+SP-45: Virtual Fridge 1 must sound an alert if left open for more than 5 minutes.
+
+SP-46: Virtual TV 1 must turn off automatically if no motion is detected for 20 minutes.
+
+SP-47: Virtual A/C 2 must maintain a temperature range between 68°F and 78°F.
+
+SP-48: Virtual Light must not blink continuously for more than 5 seconds.
+
+SP-49: Virtual Fan 2 must not operate at high speed after 11 PM.
+
+SP-50: Virtual A/C 3 must switch off during "energy-saving mode."
+
+SP-51: Virtual Light in the hallway must turn off automatically after 10 minutes of inactivity.
+
+SP-52: Virtual TV 2 must not operate during "away mode."
+
+SP-53: Virtual A/C 1 must deactivate if windows are detected to be open.
+
+SP-54: Virtual Fan 5 must switch to low speed automatically after 20 minutes of use.
+
+SP-55: Virtual Motion Sensor must not trigger Virtual Light more than twice in 1 minute.
+
+SP-56: Virtual A/C 2 must maintain a constant temperature when "focus mode" is enabled.
+
+SP-57: Virtual Light must dim automatically during "bedtime mode."
+
+SP-58: Virtual Fan 3 must deactivate when "quiet mode" is triggered.
+
+SP-59: Virtual TV 4 must switch to "mute" when no motion is detected for 15 minutes.
+
+SP-60: Virtual A/C 3 must not run simultaneously with Virtual Fan 1.
+
+SP-61: Virtual Light must not turn on at full brightness after 9 PM.
+
+SP-62: Virtual Fan 2 must deactivate when the temperature drops below 65°F.
+
+SP-63: Virtual TV 1 must not switch channels during "movie mode."
+
+SP-64: Virtual A/C 1 must deactivate automatically if no activity is detected for 2 hours.
+
+SP-65: Virtual Light must activate only at 50% brightness during "reading mode."
+
+SP-66: Virtual Fridge 1 must maintain an internal temperature of 35°F to 40°F.
+
+SP-67: Virtual Motion Sensor must not trigger devices in unoccupied rooms.
+
+SP-68: Virtual Fan 4 must not switch to high speed after midnight.
+
+SP-69: Virtual TV 3 must turn off automatically if left idle for 30 minutes.
+
+SP-70: Virtual Light must dim to 10% brightness during "movie night mode."
+
+SP-71: Virtual A/C 2 must deactivate if the outdoor temperature drops below 50°F.
+
+SP-72: Virtual Light must not blink more than once during a power fluctuation.
+
+SP-73: Virtual TV 1 must not operate if "work mode" is activated in the room.
+
+SP-74: Virtual Fan 2 must operate only in "manual mode" during the day.
+
+SP-75: Virtual A/C 1 must not turn on in rooms without an active Virtual Motion Sensor.
+
+SP-76: Virtual Light in the garage must turn off automatically after 5 minutes.
+
+SP-77: Virtual Fan 3 must not exceed medium speed when the room is unoccupied.
+
+SP-78: Virtual TV 4 must activate only during "entertainment mode."
+
+SP-79: Virtual A/C 3 must maintain a constant temperature range of 68°F to 72°F.
+
+SP-80: Virtual Light must turn off automatically during "eco mode."
+
+SP-81: Virtual TV 2 must not switch to high volume after 10 PM.
+
+SP-82: Virtual Fan 5 must deactivate automatically if no motion is detected for 30 minutes.
+
+SP-83: Virtual A/C 1 must not exceed energy-saving limits during peak hours.
+
+SP-84: Virtual Motion Sensor must trigger Virtual Light only in the presence of low light levels.
+
+SP-85: Virtual Fan 4 must deactivate when "security mode" is enabled.
+
+SP-86: Virtual Light must not remain active for more than 2 hours without motion detection.
+
+SP-87: Virtual A/C 2 must deactivate automatically when all windows are open.
+
+SP-88: Virtual TV 3 must not operate beyond its scheduled time during "movie mode."
+
+SP-89: Virtual Fan 1 must not switch to high speed during "quiet mode."
+
+SP-90: Virtual Light must not change colors more than three times per minute.
+
+SP-91: Virtual Fridge 1 must sound an alert if the internal temperature exceeds 45°F.
+
+SP-92: Virtual TV 1 must switch to "standby mode" after 30 minutes of inactivity.
+
+SP-93: Virtual Fan 3 must deactivate when "away mode" is activated.
+
+SP-94: Virtual A/C 1 must not run if all doors in the room are closed.
+
+SP-95: Virtual Light in the bedroom must dim to 15% brightness during "sleep mode."
+
+SP-96: Virtual Motion Sensor must not trigger devices outside the home.
+
+SP-97: Virtual Fan 5 must not exceed medium speed unless the temperature exceeds 80°F.
+
+SP-98: Virtual TV 4 must not turn on if "do not disturb" mode is activated.
+
+SP-99: Virtual Light in the living room must not remain on after midnight.
+
+SP-100: Virtual A/C 3 must deactivate if the room temperature drops below 65°F.
+

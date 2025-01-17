@@ -1,0 +1,13 @@
+MODULE main
+VAR
+    time : 0..24;
+    is_10pm : boolean;
+    Centralite_Outlet1_on : boolean;
+    after8pm : boolean;
+    turnOn_Centralite_Outlet1 : boolean;
+
+LTLSPEC
+    G (is_10pm -> Centralite_Outlet1_on)
+
+LTLSPEC
+    G (after8pm -> !turnOn_Centralite_Outlet1)

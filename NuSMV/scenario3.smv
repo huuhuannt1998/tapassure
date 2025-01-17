@@ -1,0 +1,237 @@
+MODULE main
+VAR
+    motion_detected : boolean;                 -- Motion sensor state
+    virtual_light_active : boolean;            -- Virtual light state
+    virtual_ac1_active : {off, idle, on};      -- Virtual A/C 1 state
+    virtual_ac3_active : {off, idle, on};      -- Virtual A/C 3 state
+    virtual_fan3_active : {off, low, medium, high};              -- Virtual Fan 3 state
+    virtual_fan1_active : {off, low, medium, high};              -- Virtual Fan 1 state
+    virtual_fan2_active : {off, low, medium, high};              -- Virtual Fan 2 state
+    activity_detected : boolean;                -- Indicates if activity is detected
+    virtual_fan4_active : {off, low, medium, high};
+    virtual_fan5_active : {off, low, medium, high};  -- Virtual Fan 5 state
+    virtual_tv1_active : boolean;              -- Virtual TV 1 state
+    virtual_tv3_active : boolean;
+    virtual_ac2_active : {off, idle, on};      -- Virtual A/C 2 state
+    virtual_tv4_active : boolean;              -- Virtual TV 4 state
+    virtual_fridge1_open : boolean;            -- Virtual Fridge 1 door state
+    fridge_open_duration : 0..100;             -- Duration fridge is open (bounded range)
+    room_temp : 0..100;                        -- Room temperature (bounded range)
+    time : 0..23;                              -- Time of day (bounded range for 24-hour format)
+    daylight : boolean;                        -- Indicates if it's daytime
+    away_mode : boolean;                       -- Indicates if the system is in "away mode"
+    quiet_mode : boolean;                      -- Indicates if the system is in "quiet mode"
+    eco_mode : boolean;                        -- Indicates if "eco mode" is active
+    brightness : 0..100;                       -- Brightness level of the light (bounded range)
+    fan_speed : {low, medium, high};           -- Speed of the fan
+    brightness_changes : 0..10;                -- Number of brightness changes in a time unit
+    virtual_switch_controls : 0..10;           -- Number of devices controlled by a switch (bounded range)
+    device_limit : 0..10;                      -- Device control limit for a switch (bounded range)
+    motion_detected_duration : 0..120;         -- Duration of continuous motion detected (bounded range)
+    no_motion_duration : 0..120;               -- Duration with no motion detected (bounded range)
+    room_occupied : boolean;                   -- Indicates if the room is occupied
+    virtual_tv3_muted : boolean;               -- Indicates if Virtual TV 3 is muted
+    all_doors_closed : boolean;                -- Indicates if all doors are closed
+    windows_open : boolean;
+    sleep_mode : boolean;  -- Indicates if the system is in "sleep mode"
+    evening_mode : boolean;
+    night_mode : boolean;
+    movie_mode : boolean;
+    ambient_light : boolean;                  -- Indicates ambient light levels
+    channel_switching_frequency : 0..10;     -- Frequency of channel switching
+    vacation_mode : boolean;                 -- Indicates if "vacation mode" is active
+    alert_activated : boolean;               -- Indicates if an alert is activated
+    virtual_tv3_volume : {low, medium, high}; -- Volume of Virtual TV 3
+    virtual_tv2_active : boolean;            -- Indicates if Virtual TV 2 is active
+    sensor_events : boolean;                 -- Indicates if sensor events occurred
+    focus_mode : boolean;                    -- Indicates if "focus mode" is active
+    bedtime_mode : boolean;                  -- Indicates if "bedtime mode" is active
+    virtual_tv1_channel_switching : boolean; -- Indicates if TV 1 is switching channels
+    reading_mode : boolean;                  -- Indicates if "reading mode" is active
+    fridge_temp_safe : boolean;              -- Indicates if fridge temperature is safe
+    movie_night_mode : boolean;              -- Indicates if "movie night mode" is active
+    manual_mode_daytime : boolean;           -- Indicates if "manual mode" is active during daytime
+    garage_activity_detected : boolean;      -- Indicates if activity is detected in the garage
+    entertainment_mode : boolean;            -- Indicates if "entertainment mode" is active
+    security_mode : boolean;                 -- Indicates if "security mode" is active
+    energy_saving_limits : boolean;          -- Indicates if energy-saving limits are enabled
+    activity_detected_duration : 0..120;
+    motion_sensor : boolean;                 -- Motion sensor state
+    virtual_lights : {normalized, adjusted, off};
+    work_mode : boolean;
+
+ASSIGN
+    -- Initial states
+    init(work_mode) := FALSE;
+    init(virtual_tv3_active) := FALSE;  -- Initially, Virtual TV 3 is inactive
+    init(motion_sensor) := FALSE;
+    init(virtual_lights) := off;
+    init(sensor_events) := FALSE;
+    init(activity_detected_duration) := 0;
+    init(ambient_light) := FALSE;
+    init(channel_switching_frequency) := 0;
+    init(vacation_mode) := FALSE;
+    init(alert_activated) := FALSE;
+    init(virtual_tv3_volume) := low;
+    init(virtual_tv2_active) := FALSE;
+    init(focus_mode) := FALSE;
+    init(bedtime_mode) := FALSE;
+    init(virtual_tv1_channel_switching) := FALSE;
+    init(reading_mode) := FALSE;
+    init(fridge_temp_safe) := TRUE;  -- Assume fridge is safe by default
+    init(movie_night_mode) := FALSE;
+    init(manual_mode_daytime) := FALSE;
+    init(garage_activity_detected) := FALSE;
+    init(entertainment_mode) := FALSE;
+    init(security_mode) := FALSE;
+    init(energy_saving_limits) := FALSE;
+    init(activity_detected) := FALSE;          -- Initially, no activity is detected
+    init(virtual_fan5_active) := off;          -- Initially, Fan 5 is off
+    init(virtual_fan4_active) := off;
+    init(windows_open) := FALSE;
+    init(motion_detected) := FALSE;
+    init(virtual_light_active) := FALSE;
+    init(virtual_ac1_active) := off;            -- Use symbolic value "off"
+    init(virtual_ac3_active) := off;            -- Use symbolic value "off"
+    init(virtual_fan1_active) := off;
+    init(virtual_fan2_active) := off;
+    init(virtual_fan3_active) := off;
+    init(virtual_tv1_active) := FALSE;
+    init(virtual_ac2_active) := off;            -- Use symbolic value "off"
+    init(virtual_tv4_active) := FALSE;
+    init(virtual_fridge1_open) := FALSE;
+    init(fridge_open_duration) := 0;
+    init(room_temp) := 70;
+    init(time) := 0;
+    init(daylight) := FALSE;
+    init(away_mode) := FALSE;
+    init(quiet_mode) := FALSE;
+    init(eco_mode) := FALSE;
+    init(brightness) := 0;
+    init(brightness_changes) := 0;
+    init(virtual_switch_controls) := 0;
+    init(device_limit) := 2;
+    init(motion_detected_duration) := 0;
+    init(no_motion_duration) := 0;
+    init(room_occupied) := FALSE;
+    init(virtual_tv3_muted) := FALSE;
+    init(all_doors_closed) := TRUE;
+    init(sleep_mode) := FALSE;
+    
+    -- Transition rules
+next(virtual_tv1_active) := case
+    !daylight : TRUE;            -- Turn on Virtual TV 1 when it is sunset (daylight is FALSE)
+    TRUE : virtual_tv1_active;   -- Maintain current state
+esac;
+
+next(virtual_fan1_active) := case
+    !daylight : medium;          -- Set Virtual Fan 1 to medium speed when it is sunset (daylight is FALSE)
+    daylight : off;              -- Turn off Virtual Fan 1 during the day
+    TRUE : virtual_fan1_active;  -- Maintain current state
+esac;
+
+
+
+-- LTLSPEC Properties
+
+LTLSPEC G ((windows_open -> !(virtual_ac1_active = on))) -- SP-1
+LTLSPEC G ((!motion_detected & no_motion_duration >= 10) -> !virtual_light_active) -- SP-2
+LTLSPEC G (room_temp < 68 -> (virtual_fan3_active = off)) -- SP-3
+LTLSPEC G ((time >= 0 & time < 6) -> !virtual_tv1_active) -- SP-4
+LTLSPEC G ((time >= 23) -> (brightness = 20)) -- SP-5
+LTLSPEC G (room_temp < 65 -> !(virtual_ac2_active = on)) -- SP-6
+LTLSPEC G (away_mode -> !motion_detected) -- SP-7
+LTLSPEC G ((!daylight & motion_detected) -> virtual_light_active) -- SP-8
+LTLSPEC G (!((virtual_fan1_active != off) & (virtual_fan2_active != off))) -- SP-9
+LTLSPEC G (no_motion_duration >= 30 -> !virtual_tv4_active) -- SP-10
+LTLSPEC G (fridge_open_duration <= 2) -- SP-11
+LTLSPEC G (room_temp < 70 -> (virtual_ac3_active = off)) -- SP-12
+LTLSPEC G ((virtual_ac2_active = on) -> room_temp <= 78) -- SP-13
+
+LTLSPEC G ((!activity_detected & (virtual_fan5_active != off)) -> motion_detected_duration <= 60) -- SP-15
+LTLSPEC G (sleep_mode -> (brightness <= 20)) -- SP-16
+LTLSPEC G (room_temp > 85 -> (virtual_fan4_active = medium)) -- SP-17
+LTLSPEC G ((brightness_changes <= 2)) -- SP-18
+LTLSPEC G ((!activity_detected & no_motion_duration >= 15) -> virtual_tv3_muted) -- SP-19
+LTLSPEC G ((!motion_detected & !room_occupied) -> (virtual_ac1_active = idle)) -- SP-20
+LTLSPEC G ((motion_detected & room_occupied) -> virtual_light_active) -- SP-21
+
+LTLSPEC G ((motion_detected & !daylight) -> virtual_light_active) -- SP-23
+LTLSPEC G (fridge_open_duration <= 30) -- SP-24
+LTLSPEC G (!(virtual_fan1_active != off & virtual_ac2_active = on)) -- SP-25
+LTLSPEC G (virtual_switch_controls <= device_limit) -- SP-26
+LTLSPEC G (quiet_mode -> !(virtual_fan5_active = high)) -- SP-27
+LTLSPEC G ((time >= 21) -> (brightness <= 20)) -- SP-28
+LTLSPEC G (((evening_mode | night_mode) -> virtual_light_active)) -- SP-29
+LTLSPEC G ((!activity_detected & no_motion_duration >= 15) -> (virtual_fan2_active = off)) -- SP-30
+LTLSPEC G (!motion_detected -> virtual_light_active = FALSE) -- SP-31
+LTLSPEC G ((!activity_detected) -> !virtual_tv4_active) -- SP-32
+LTLSPEC G (!((virtual_fan3_active = high) & (room_temp <= 75))) -- SP-33
+LTLSPEC G ((!motion_detected & daylight) -> !virtual_light_active) -- SP-34
+LTLSPEC G (all_doors_closed -> (virtual_ac3_active = off)) -- SP-35
+LTLSPEC G (movie_mode -> (brightness = 50)) -- SP-36
+LTLSPEC G ((channel_switching_frequency <= 3)) -- SP-37
+LTLSPEC G ((vacation_mode) -> (virtual_fan1_active = off)) -- SP-38
+LTLSPEC G ((!ambient_light & motion_detected) -> virtual_light_active) -- SP-39
+LTLSPEC G ((virtual_switch_controls <= 2)) -- SP-40
+LTLSPEC G ((no_motion_duration >= 60) -> (virtual_ac1_active = off)) -- SP-41
+LTLSPEC G ((time > 22 & virtual_tv3_volume = high) -> FALSE) -- SP-42
+LTLSPEC G (quiet_mode -> (brightness = 30)) -- SP-43
+LTLSPEC G (room_temp < 72 -> (virtual_fan4_active = off)) -- SP-44
+LTLSPEC G (fridge_open_duration > 5 -> alert_activated) -- SP-45
+LTLSPEC G ((motion_detected_duration = 20) -> (virtual_tv1_active = FALSE)) -- SP-46
+LTLSPEC G ((room_temp >= 68 & room_temp <= 78) -> (virtual_ac2_active = on)) -- SP-47
+LTLSPEC G ((!eco_mode & brightness > 50) -> virtual_light_active = FALSE) -- SP-48
+LTLSPEC G ((ambient_light & daylight) -> !virtual_light_active) -- SP-49
+LTLSPEC G (eco_mode -> (virtual_ac3_active != on)) -- SP-50
+LTLSPEC G ((motion_detected_duration < 120) -> (virtual_light_active = FALSE)) -- SP-51
+LTLSPEC G ((!away_mode) -> virtual_tv2_active = FALSE) -- SP-52
+LTLSPEC G ((windows_open) -> !(virtual_ac1_active = on)) -- SP-53
+LTLSPEC G ((activity_detected_duration > 15) -> (virtual_fan1_active = low)) -- SP-54
+LTLSPEC G ((!motion_sensor -> sensor_events = TRUE)) -- SP-55
+LTLSPEC G (focus_mode -> virtual_ac2_active = on) -- SP-56
+LTLSPEC G (bedtime_mode -> brightness = 20) -- SP-57
+LTLSPEC G (quiet_mode -> (virtual_fan3_active = off)) -- SP-58
+LTLSPEC G (movie_mode -> brightness = 50) -- SP-59
+LTLSPEC G ((!motion_sensor | daylight -> virtual_lights = normalized)) -- SP-60
+LTLSPEC G ((!motion_detected & brightness > 50) -> virtual_light_active = FALSE) -- SP-61
+LTLSPEC G ((room_temp < 65) -> (virtual_fan2_active = off)) -- SP-62
+LTLSPEC G ((movie_mode) -> !(virtual_tv1_channel_switching)) -- SP-63
+LTLSPEC G ((no_motion_duration >= 120) -> !(virtual_ac1_active = on)) -- SP-64
+LTLSPEC G ((reading_mode) -> (brightness = 50)) -- SP-65
+LTLSPEC G ((room_temp >= 35 & room_temp <= 40) -> fridge_temp_safe) -- SP-66
+LTLSPEC G ((!room_occupied) -> !motion_detected) -- SP-67
+LTLSPEC G ((time >= 0 & time < 6) -> (virtual_fan4_active = low)) -- SP-68
+LTLSPEC G ((motion_detected_duration < 30) -> virtual_tv3_active) -- SP-69
+LTLSPEC G ((movie_night_mode) -> (brightness = 10)) -- SP-70
+LTLSPEC G ((room_temp < 50) -> !(virtual_ac2_active = on)) -- SP-71
+LTLSPEC G ((!eco_mode) -> virtual_light_active) -- SP-72
+LTLSPEC G ((work_mode) -> !virtual_tv1_active) -- SP-73
+LTLSPEC G ((manual_mode_daytime) -> (virtual_fan2_active = low)) -- SP-74
+LTLSPEC G (!(virtual_ac1_active = on & !motion_detected)) -- SP-75
+LTLSPEC G ((!garage_activity_detected) -> !virtual_light_active) -- SP-76
+LTLSPEC G ((!room_occupied) -> (virtual_fan3_active = low)) -- SP-77
+LTLSPEC G ((entertainment_mode) -> virtual_tv4_active) -- SP-78
+LTLSPEC G ((!eco_mode & (virtual_ac3_active = on)) -> (room_temp >= 68 & room_temp <= 72)) -- SP-79
+LTLSPEC G ((eco_mode) -> !virtual_light_active) -- SP-80
+LTLSPEC G (time > 22 -> brightness <= 80) -- SP-81
+LTLSPEC G ((no_motion_duration >= 30) -> virtual_fan3_active = off) -- SP-82
+LTLSPEC G ((energy_saving_limits) -> !(virtual_ac1_active = on)) -- SP-83
+LTLSPEC G ((!daylight) -> virtual_light_active) -- SP-84
+LTLSPEC G ((security_mode) -> virtual_fan4_active = off) -- SP-85
+LTLSPEC G ((no_motion_duration >= 120) -> virtual_light_active = FALSE) -- SP-86
+LTLSPEC G ((virtual_ac2_active = on & windows_open) -> !(virtual_ac2_active = on)) -- SP-87
+LTLSPEC G ((!movie_mode & virtual_tv3_active) -> virtual_tv3_muted) -- SP-88
+LTLSPEC G ((virtual_fan1_active = high & quiet_mode) -> (fan_speed = low)) -- SP-89
+LTLSPEC G ((!motion_detected & brightness_changes <= 3)) -- SP-90
+LTLSPEC G ((room_temp > 45) -> alert_activated) -- SP-91
+LTLSPEC G ((no_motion_duration >= 30) -> (virtual_tv1_active = FALSE)) -- SP-92
+LTLSPEC G ((away_mode) -> virtual_fan3_active = off) -- SP-93
+LTLSPEC G ((all_doors_closed) -> !(virtual_ac1_active = on)) -- SP-94
+LTLSPEC G ((sleep_mode) -> (brightness <= 15)) -- SP-95
+LTLSPEC G ((!motion_detected) -> !virtual_light_active) -- SP-96
+LTLSPEC G ((room_temp > 80) -> (virtual_fan4_active = low)) -- SP-97
+LTLSPEC G ((!quiet_mode) -> !(virtual_tv4_active = FALSE)) -- SP-98
+LTLSPEC G ((time > 23) -> !(virtual_light_active = TRUE)) -- SP-99
+LTLSPEC G ((room_temp < 65) -> !(virtual_ac3_active = on)) -- SP-100
+

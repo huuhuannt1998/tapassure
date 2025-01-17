@@ -1,0 +1,90 @@
+MODULE main
+
+VAR
+  time : 0..24; -- Time ranges from 0 to 24 hours
+  Centralite_Outlet_1 : boolean;
+  Aeotec_Outlet_1 : boolean;
+  Virtual_Switch : boolean;
+  Virtual_Light : boolean;
+  Motion_Sensor : boolean;
+  Virtual_Motion_Sensor : boolean;
+  inactivity_timer : 0..30;
+
+ASSIGN
+  -- Initial state
+  init(time) := 0;
+  init(Centralite_Outlet_1) := FALSE;
+  init(Aeotec_Outlet_1) := FALSE;
+  init(Virtual_Switch) := TRUE;
+  init(Virtual_Light) := FALSE;
+  init(Motion_Sensor) := TRUE;
+  init(Virtual_Motion_Sensor) := TRUE;
+  init(inactivity_timer) := 0;
+
+  -- Time progression
+  next(time) := case
+    time < 24 : time + 1;
+    time = 24 : 0;
+    TRUE : time;
+  esac;
+
+  -- Scenarios (behavior triggers)
+  next(Centralite_Outlet_1) := case
+    time = 22 : TRUE; -- Scenario: Turn on Centralite Outlet 1 at 10pm
+    time = 10 & Centralite_Outlet_1 = FALSE : TRUE; -- Scenario: Centralite remains on for at least 2 hours
+    Virtual_Light = FALSE : FALSE; -- Scenario: Do not turn on Centralite Outlet 1 if Virtual Light is off
+    TRUE : Centralite_Outlet_1;
+  esac;
+
+  next(Aeotec_Outlet_1) := case
+    time = 8 : TRUE; -- Scenario: Turn on Aeotec Outlet 1 at 8am
+    Virtual_Motion_Sensor = FALSE & time >= 3 : FALSE; -- Scenario: Turn off Aeotec if no motion for 3 hours
+    TRUE : Aeotec_Outlet_1;
+  esac;
+
+  next(Virtual_Switch) := case
+    time = 8 : TRUE; -- Scenario: Turn on Virtual Switch at 8am
+    TRUE : Virtual_Switch;
+  esac;
+
+  next(Virtual_Light) := case
+    Motion_Sensor = TRUE : TRUE; -- Scenario: Turn on Virtual Light if Motion Sensor detects motion
+    Motion_Sensor = FALSE & inactivity_timer >= 30 : FALSE; -- Scenario: Turn off Virtual Light after 30 minutes of inactivity
+    TRUE : Virtual_Light;
+  esac;
+
+  next(Motion_Sensor) := case
+    Virtual_Switch = FALSE : FALSE; -- Scenario: Turn off Motion Sensor if Virtual Switch is off
+    TRUE : Motion_Sensor;
+  esac;
+
+  next(Virtual_Motion_Sensor) := case
+    time >= 6 & Virtual_Motion_Sensor = FALSE : FALSE; -- Scenario: Turn off Virtual Motion Sensor if no motion for 6 hours
+    TRUE : Virtual_Motion_Sensor;
+  esac;
+  
+next(inactivity_timer) := case
+  Motion_Sensor = FALSE & inactivity_timer < 30 : inactivity_timer + 1; -- Increment timer, cap at 30
+  Motion_Sensor = TRUE : 0; -- Reset timer if motion detected
+  TRUE : inactivity_timer;
+esac;
+
+
+
+-- Safety properties (16 rules)
+LTLSPEC G (time > 20 -> !Centralite_Outlet_1); -- 1. Do not turn on Centralite Outlet 1 after 8pm
+LTLSPEC G (time < 9 -> !Aeotec_Outlet_1); -- 2. Do not turn on Aeotec Outlet 1 before 9am
+LTLSPEC G ((time >= 8 & time <= 18) -> Virtual_Switch); -- 3. Do not turn off Virtual Switch between 8am and 6pm
+LTLSPEC G (time = 0 -> !Virtual_Light); -- 4. Ensure Virtual Light remains off after midnight
+LTLSPEC G ((Motion_Sensor = FALSE & inactivity_timer >= 2) -> !Motion_Sensor); -- 5. Turn off Motion Sensor if no motion is detected for 2 hours
+LTLSPEC G (time > 22 -> !Aeotec_Outlet_1); -- 6. Ensure Aeotec Outlet 1 remains off after 10pm
+LTLSPEC G ((time = 10 & Centralite_Outlet_1) -> X(Centralite_Outlet_1)); -- 7. Ensure Centralite Outlet 1 remains on for at least 2 hours once turned on
+LTLSPEC G (Virtual_Switch -> !Virtual_Light); -- 8. Do not turn on Virtual Light if Virtual Switch is on
+LTLSPEC G ((Virtual_Motion_Sensor = FALSE & time >= 6) -> !Virtual_Motion_Sensor); -- 9. Turn off Virtual Motion Sensor if no motion for 6 hours
+LTLSPEC G ((time >= 6 & time <= 18) -> Virtual_Light); -- 10. Do not turn off Virtual Light during the day (6am - 6pm)
+LTLSPEC G (time = 23 -> (!Centralite_Outlet_1 & !Aeotec_Outlet_1 & !Virtual_Switch & !Virtual_Light)); -- 11. Ensure all devices are turned off by 11:30pm
+LTLSPEC G (Virtual_Light = FALSE -> !Centralite_Outlet_1); -- 12. Do not turn on Centralite Outlet 1 if Virtual Light is off
+LTLSPEC G (time <= 22 -> Motion_Sensor); -- 13. Ensure Motion Sensor remains active until 10pm
+LTLSPEC G ((Virtual_Motion_Sensor = FALSE & time >= 3) -> !Aeotec_Outlet_1); -- 14. Turn off Aeotec Outlet 1 if no motion for 3 hours
+LTLSPEC G ((Motion_Sensor = FALSE & inactivity_timer >= 30) -> !Virtual_Light); -- 15. Ensure Virtual Light is turned off after 30 minutes of inactivity
+LTLSPEC G ((time >= 7 & time <= 21) -> Virtual_Switch); -- 16. Ensure Virtual Switch remains on between 7am and 9pm

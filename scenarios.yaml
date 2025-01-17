@@ -1,0 +1,6 @@
+scenarios:
+- action: Parsed action for scenario 1
+  condition: Parsed condition for scenario 1
+  description: If it is 10pm, turn on Centralite Outlet 1.
+  devices: Parsed devices for scenario 1
+  id: scenario_1
