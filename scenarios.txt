@@ -1,6 +1,6 @@
 1. When motion is detected by the Motion Sensor, turn on the Virtual Light.
 
-2. Turn off Virtual A/C 1 when the Virtual Motion Sensor detects no motion.
+2. Turn off Virtual A/C 1 when the Virtual Motion Sensor detects no motion. (*)
 
 3. At sunset, turn on Virtual TV 1 and set Virtual Fan 1 to medium speed.
 

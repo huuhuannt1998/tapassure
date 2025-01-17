@@ -4,9 +4,9 @@ Scenario 2: Violates SP-99.
 
 Scenario 3: Violates no properties.
 
-Scenario 4: Violates SP-21, SP-95, SP-5.
+Scenario 4: Violates SP-21, SP-95 (True), SP-5 (True).
 
-Scenario 5: Violates SP-47, SP-71.
+Scenario 5: Violates SP-47 (True), SP-71 (True).
 
 Scenario 6: Violates SP-17, SP-93.
 
@@ -14,9 +14,9 @@ Scenario 7: Violates SP-53.
 
 Scenario 8: Violates SP-15, SP-64.
 
-Scenario 9: Violates SP-22.
+Scenario 9: Violates SP-22. (*)
 
-Scenario 10: Violates SP-49, SP-68.
+Scenario 10: Violates SP-49 (True), SP-68.
 
 Scenario 11: Violates SP-72, SP-38.
 

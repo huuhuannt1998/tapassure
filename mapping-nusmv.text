@@ -1,8 +1,8 @@
-Scenario 1: Violates SP-99.
+Scenario 1: Violates SP-99. (True)
 
-Scenario 2: Violates SP-99.
+Scenario 2: Violates SP-99. 
 
-Scenario 3: Violates SP-99, SP-89.
+Scenario 3: Violates SP-99, SP-89 (True).
 
 Scenario 4: Violates SP-99
 
