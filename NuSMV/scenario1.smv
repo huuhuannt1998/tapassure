@@ -67,7 +67,6 @@ VAR
 
 ASSIGN
     -- Initial states
-
     init(virtual_light_alert) := FALSE;     -- Alert light is off by default
     init(weekday) := TRUE; 
     init(virtual_switch) := FALSE; 
@@ -130,15 +129,11 @@ ASSIGN
     init(tv4_brightness) := 50;
     
     -- Transition rules
-    next(motion_detected) := case
-        TRUE : !motion_detected;  -- Toggle motion detection for testing
-    esac;
-
-    next(virtual_light) := case
-        motion_detected : TRUE;   -- Turn on the Virtual Light when motion is detected
-        !motion_detected : FALSE; -- Turn off the Virtual Light when no motion is detected
-        TRUE : virtual_light;     -- Maintain current state otherwise
-    esac;
+next(virtual_light) := case
+    motion_detected : TRUE;   -- Turn on the Virtual Light when motion is detected
+    !motion_detected : FALSE; -- Turn off the Virtual Light when no motion is detected
+    TRUE : virtual_light; -- Maintain current state
+esac;
 
 
 -- LTLSPEC Properties
@@ -176,7 +171,7 @@ LTLSPEC G ((!activity_detected & no_motion_duration >= 15) -> (virtual_fan2 = of
 
 LTLSPEC G ((!activity_detected) -> !virtual_tv4) -- SP-32
 LTLSPEC G (!((virtual_fan3 = high) & (room_temp <= 75))) -- SP-33
-LTLSPEC G ((eco_mode & daylight) -> !virtual_light) -- SP-34
+LTLSPEC G ((!motion_detected & daylight) -> !virtual_light) -- SP-34
 LTLSPEC G (all_doors_closed -> (virtual_ac3 = off)) -- SP-35
 LTLSPEC G (movie_mode -> (brightness = 50)) -- SP-36
 
@@ -203,7 +198,7 @@ LTLSPEC G (bedtime_mode -> brightness = 20) -- SP-57
 LTLSPEC G (quiet_mode -> (virtual_fan3 = off)) -- SP-58
 LTLSPEC G ((no_motion_duration >= 15) -> (virtual_tv4_volume = mute)) -- SP-59
 LTLSPEC G (!(virtual_ac3 = on & virtual_fan1 != off)) -- SP-60
-LTLSPEC G ((!motion_detected & brightness > 50) -> !virtual_light) -- SP-61
+LTLSPEC G ((!motion_detected & brightness > 50) -> virtual_light = FALSE) -- SP-61
 LTLSPEC G ((room_temp < 65) -> (virtual_fan2 = off)) -- SP-62
 
 LTLSPEC G ((no_motion_duration >= 120) -> (virtual_ac1 = off)) -- SP-64
@@ -214,7 +209,7 @@ LTLSPEC G ((time >= 0 & time < 6) -> !(virtual_fan4 = high)) -- SP-68
 LTLSPEC G (no_motion_duration >= 30 -> !virtual_tv3) -- SP-69
 LTLSPEC G ((movie_night_mode) -> (brightness = 10)) -- SP-70
 LTLSPEC G ((room_temp < 50) -> (virtual_ac2 = off)) -- SP-71
-
+LTLSPEC G ((!eco_mode) -> virtual_light) -- SP-72
 LTLSPEC G ((work_mode) -> !virtual_tv1) -- SP-73
 
 LTLSPEC G (!(virtual_ac1 = on & !motion_detected)) -- SP-75
@@ -241,6 +236,6 @@ LTLSPEC G ((sleep_mode) -> (brightness <= 15)) -- SP-95
 
 LTLSPEC G ((room_temp > 80) -> (virtual_fan4 = low)) -- SP-97
 LTLSPEC G ((!quiet_mode) -> !(virtual_tv4 = FALSE)) -- SP-98
-LTLSPEC G ((time > 23) -> !(virtual_light)) -- SP-99
+LTLSPEC G ((time > 23) -> !(virtual_light = TRUE)) -- SP-99
 LTLSPEC G ((room_temp < 65) -> (virtual_ac3 = off)) -- SP-100
 

@@ -6,7 +6,7 @@ SP-3: Virtual Fan 3 must not run when the room temperature is below 68°F.
 
 SP-4: Virtual TV 1 must not turn on between midnight and 6 AM.
 
-SP-5: All Virtual Lights must dim to 20% brightness after 11 PM.
+
 
 SP-6: Virtual A/C 2 must not run if the temperature is below 65°F.
 
@@ -24,7 +24,7 @@ SP-12: Virtual A/C 3 must deactivate if the room temperature drops below 70°F.
 
 SP-13: Virtual A/C 2 must not exceed 78°F.
 
-
+SP-14
 
 SP-15: Virtual Fan 5 must not remain on for more than 1 hour without activity detection.
 
@@ -40,6 +40,7 @@ SP-20: Virtual A/C 1 must switch to "eco mode" when no one is home.
 
 SP-21: Virtual Motion Sensor must activate Virtual Light only in occupied rooms.
 
+SP-22: 
 
 SP-23: Virtual Light must activate only when motion is detected in dark areas.
 
@@ -138,6 +139,7 @@ SP-69: Virtual TV 3 must turn off automatically if left idle for 30 minutes.
 SP-70: Virtual Light must dim to 10% brightness during "movie night mode."
 
 SP-71: Virtual A/C 2 must deactivate if the outdoor temperature drops below 50°F.
+
 
 
 SP-73: Virtual TV 1 must not operate if "work mode" is activated in the room.

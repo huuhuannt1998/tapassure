@@ -1,6 +1,16 @@
 scenarios:
 - action: Parsed action for scenario 1
   condition: Parsed condition for scenario 1
-  description: If it is 10pm, turn on Centralite Outlet 1.
+  description: When motion is detected by the Motion Sensor, turn on the Virtual Light.
   devices: Parsed devices for scenario 1
   id: scenario_1
+- action: Parsed action for scenario 2
+  condition: Parsed condition for scenario 2
+  description: Turn off Virtual A/C 1 when the Virtual Motion Sensor detects no motion.
+  devices: Parsed devices for scenario 2
+  id: scenario_2
+- action: Parsed action for scenario 3
+  condition: Parsed condition for scenario 3
+  description: At sunset, turn on Virtual TV 1 and set Virtual Fan 1 to medium speed.
+  devices: Parsed devices for scenario 3
+  id: scenario_3

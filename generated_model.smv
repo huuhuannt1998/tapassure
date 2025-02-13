@@ -1,13 +1,84 @@
+```nusmv
 MODULE main
 VAR
-    time : 0..24;
-    is_10pm : boolean;
-    Centralite_Outlet1_on : boolean;
-    after8pm : boolean;
-    turnOn_Centralite_Outlet1 : boolean;
+  motion_detected : boolean;
+  virtual_light : boolean;
+  virtual_ac_1 : boolean;
+  virtual_fan_3 : boolean;
+  room_temperature : 0..100;
+  windows_open : boolean;
+  daylight : boolean;
+  fan1_running : boolean;
+  fan2_running : boolean;
+  no_activity_30min : boolean;
+  fridge1_open : boolean;
+  virtual_ac_3_active : boolean;
+  virtual_ac_2_temp : 0..78;
+  fan5_on : boolean;
+  activity_detected : boolean;
+  temperature_exceeds_85 : boolean;
+  fan4_medium_speed : boolean;
+  muted : boolean;
+  home_empty : boolean;
+  ac1_eco_mode : boolean;
+  motion_sensor_activated : boolean;
+  room_occupied : boolean;
+  light_on : boolean;
+  dark_area : boolean;
+  ac2_running : boolean;
+  fan1_active : boolean;
+  virtual_tv4_on : boolean;
+  temperature_below_65 : boolean;
+  virtual_ac_2_on : boolean;
+  away_mode : boolean;
+  virtual_motion_sensor_triggered : boolean;
+  time : 0..23;
+  tv_on : boolean;
+  no_motion_10min : boolean;
+  no_activity_5min : boolean;
 
-LTLSPEC
-    G (is_10pm -> Centralite_Outlet1_on)
+ASSIGN
+  next(virtual_light) := case
+    motion_detected & !daylight & dark_area : 1;
+    no_motion_10min : 0;
+    TRUE : virtual_light;
+  esac;
 
-LTLSPEC
-    G (after8pm -> !turnOn_Centralite_Outlet1)
+  next(virtual_ac_1) := case
+    virtual_motion_sensor_triggered & !windows_open : 1;
+    !virtual_motion_sensor_triggered : 0;
+    TRUE : virtual_ac_1;
+  esac;
+
+  next(virtual_fan_3) := case
+    room_temperature > 75 : 1;
+    room_temperature <= 68 : 0;
+    TRUE : virtual_fan_3;
+  esac;
+
+  next(ac1_eco_mode) := home_empty;
+
+  next(no_motion_10min) := !motion_detected;
+
+  next(no_activity_5min) := !activity_detected;
+
+LTLSPEC G !(windows_open & virtual_ac_1)
+LTLSPEC G (motion_detected -> X (!virtual_light))
+LTLSPEC G !(room_temperature <= 68 & virtual_fan_3)
+LTLSPEC G !(time >= 0 & time < 6 & tv_on)
+LTLSPEC G !(temperature_below_65 & virtual_ac_2_on)
+LTLSPEC G !(away_mode & virtual_motion_sensor_triggered)
+LTLSPEC G (daylight -> (virtual_light -> motion_detected))
+LTLSPEC G !(fan1_running & fan2_running)
+LTLSPEC G (no_activity_30min -> !virtual_tv4_on)
+LTLSPEC G (fridge1_open -> X (!fridge1_open))
+LTLSPEC G (room_temperature < 70 -> !virtual_ac_3_active)
+LTLSPEC GF (virtual_ac_2_temp <= 78)
+LTLSPEC G (fan5_on -> X (!activity_detected U X activity_detected))
+LTLSPEC G (temperature_exceeds_85 -> fan4_medium_speed)
+LTLSPEC G (activity_detected -> X (!muted))
+LTLSPEC G (home_empty -> ac1_eco_mode)
+LTLSPEC G !(motion_sensor_activated & !room_occupied & light_on)
+LTLSPEC G (dark_area & motion_detected -> virtual_light)
+LTLSPEC G !(ac2_running & fan1_active)
+```
