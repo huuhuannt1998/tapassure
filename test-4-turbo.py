@@ -126,7 +126,7 @@ Your response should include:
 # Create a ChatPromptTemplate using the defined template
 device_validation_template = ChatPromptTemplate.from_template(template)
 
-def interactive_device_validation(devices):
+def scenarios_validation(devices):
     print("Welcome to the TAPChecker!")
     print("You can input multiple scenarios. The assistant will validate each one.")
     print("Type 'done' when you have finished entering your scenarios.\n")
@@ -198,7 +198,7 @@ Your response must explicitly include:
 3. Suggestions for improvement (if needed).
 """
 
-def interactive_safety_property_validation(devices):
+def safety_property_validation(devices):
     print("\nNow, let's define the safety properties for your IoT automation rules.")
     print("Type 'done' when you have finished entering safety properties.\n")
 
@@ -255,7 +255,8 @@ def interactive_safety_property_validation(devices):
 def prompt_based_validation(scenarios, safety_properties):
 
     prompt_based_validation_template = """
-    You are an expert assistant for validating IoT automation rules. Cross-check the given scenario against all the provided safety properties and determine:
+    You are an expert assistant for validating IoT automation rules. 
+    Cross-check the given scenario against all the provided safety properties and determine:
     1. Whether the scenario violates any of the safety properties.
     2. If a violation exists, explain why and suggest modifications to the scenario.
 
@@ -322,35 +323,35 @@ def prompt_based_validation(scenarios, safety_properties):
 # PROCESS 1: FIXING SYNTAX ERRORS
 #############################
 
-def generate_smv_with_ltl(scenarios, safety_properties, output_file="model.smv"):
-    """
-    Generate an initial NuSMV model with LTL formulas based on provided scenarios and safety properties.
-    """
-    print("\nGenerating NuSMV model with LTL formulas...\n")
-    with open(output_file, "w") as file:
-        file.write("MODULE main\n")
-        file.write("VAR\n")
-        file.write("  time : 0..24;\n")  # Example variable for temporal logic
+# def generate_smv_with_ltl(scenarios, safety_properties, output_file="model.smv"):
+#     """
+#     Generate an initial NuSMV model with LTL formulas based on provided scenarios and safety properties.
+#     """
+#     print("\nGenerating NuSMV model with LTL formulas...\n")
+#     with open(output_file, "w") as file:
+#         file.write("MODULE main\n")
+#         file.write("VAR\n")
+#         file.write("  time : 0..24;\n")  # Example variable for temporal logic
 
-        # Write LTL formulas for scenarios
-        file.write("\n-- LTL Specifications for Scenarios\n")
-        for idx, scenario in enumerate(scenarios, 1):
-            try:
-                ltl_formula = parse_scenario_to_ltl(scenario)
-                file.write(f"LTLSPEC name scenario_{idx}: {ltl_formula};\n")
-            except Exception as e:
-                print(f"Error parsing scenario {idx}: {scenario} -> {str(e)}")
+#         # Write LTL formulas for scenarios
+#         file.write("\n-- LTL Specifications for Scenarios\n")
+#         for idx, scenario in enumerate(scenarios, 1):
+#             try:
+#                 ltl_formula = parse_scenario_to_ltl(scenario)
+#                 file.write(f"LTLSPEC name scenario_{idx}: {ltl_formula};\n")
+#             except Exception as e:
+#                 print(f"Error parsing scenario {idx}: {scenario} -> {str(e)}")
 
-        # Write LTL formulas for safety properties
-        file.write("\n-- LTL Specifications for Safety Properties\n")
-        for idx, safety_property in enumerate(safety_properties, 1):
-            try:
-                ltl_formula = parse_safety_property_to_ltl(safety_property)
-                file.write(f"LTLSPEC name safety_{idx}: {ltl_formula};\n")
-            except Exception as e:
-                print(f"Error parsing safety property {idx}: {safety_property} -> {str(e)}")
+#         # Write LTL formulas for safety properties
+#         file.write("\n-- LTL Specifications for Safety Properties\n")
+#         for idx, safety_property in enumerate(safety_properties, 1):
+#             try:
+#                 ltl_formula = parse_safety_property_to_ltl(safety_property)
+#                 file.write(f"LTLSPEC name safety_{idx}: {ltl_formula};\n")
+#             except Exception as e:
+#                 print(f"Error parsing safety property {idx}: {safety_property} -> {str(e)}")
 
-    print(f"NuSMV model generated: {output_file}")
+#     print(f"NuSMV model generated: {output_file}")
 
 def validate_ltl_formula(formula):
     return "G" in formula or "F" in formula or "X" in formula
@@ -561,7 +562,8 @@ def minimize_violations_with_llm(model_file, scenarios, safety_properties):
     attempt_count = 0
     while True:
         attempt_count += 1
-        print(f"\nIteration {attempt_count}: Minimizing violations...")
+        print(f"\n=== Process 2: Iteration {attempt_count}: Minimizing violations...")
+        # print(f"\nIteration {attempt_count}: Minimizing violations...")
         is_valid, validation_output = validate_nusmv_model(model_file)
         
         if is_valid:
@@ -704,15 +706,15 @@ while True:
     )
 
     # Display prompt-based validation results
-    if prompt_violations:
-        print("\nConflicts detected in prompt-based validation:")
-        for i, violation in enumerate(prompt_violations, 1):
-            print(f"\nConflict {i}:")
-            print(f"Scenario: {violation['scenario']}")
-            print(f"Safety Property: {violation['property']}")
-            print(f"Response: {violation['response']}")
-    else:
-        print("\nNo conflicts detected in prompt-based validation.")
+    # if prompt_violations:
+    #     print("\nConflicts detected in prompt-based validation:")
+    #     for i, violation in enumerate(prompt_violations, 1):
+    #         print(f"\nConflict {i}:")
+    #         print(f"Scenario: {violation['scenario']}")
+    #         print(f"Safety Property: {violation['property']}")
+    #         print(f"Response: {violation['response']}")
+    # else:
+    #     print("\nNo conflicts detected in prompt-based validation.")
 
     model_file = "generated_model.smv"
 
