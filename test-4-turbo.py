@@ -513,7 +513,7 @@ def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.s
             print("🔄 Refining NuSMV model based on syntax error...")
 
         if not nusmv_model:
-            print(f"❌ Failed to generate NuSMV model in iteration {iteration}. Retrying...\n")
+            print(f"Failed to generate NuSMV model in iteration {iteration}. Retrying...\n")
             continue
 
         # Save the generated model to a file
@@ -527,12 +527,12 @@ def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.s
         is_valid, validation_output = validate_nusmv_model(output_file)
 
         if is_valid:
-            print(f"\n✅ NuSMV model is valid and generated successfully after {iteration} iterations.\n")
+            print(f"\n NuSMV model is valid and generated successfully after {iteration} iterations.\n")
             return iteration, True, nusmv_model
 
         # Display the syntax error
         error_message = validation_output.splitlines()[0]
-        print("\n⚠️ Syntax error detected:")
+        print("\n Syntax error detected:")
         print(error_message)
 
         # Check for repeated error
@@ -543,17 +543,17 @@ def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.s
             last_error = error_message
 
         if repeated_error_count >= 2:  # Stop if the same error occurs 3 times consecutively
-            print(f"\n❌ Repeated syntax error detected. Stopping regeneration after {iteration} iterations.\n")
+            print(f"\n Repeated syntax error detected. Stopping regeneration after {iteration} iterations.\n")
             return iteration, False, "Repeated syntax error. Model validation failed."
 
         # Refine the model using the syntax error
         nusmv_model = feed_error_to_llm(output_file, validation_output, scenarios, safety_properties)
         if not nusmv_model:
-            print("❌ Failed to refine the model. Retrying...\n")
+            print(" Failed to refine the model. Retrying...\n")
             continue
 
     # If max_attempts is reached, return an error message
-    print(f"\n❌ Maximum attempts ({max_attempts}) reached. NuSMV model could not be validated.")
+    print(f"\n Maximum attempts ({max_attempts}) reached. NuSMV model could not be validated.")
     return iteration, False, "Maximum attempts reached. Model validation failed."
 
 
@@ -675,25 +675,25 @@ def minimize_violations_with_llm(model_file, scenarios, safety_properties, max_a
         is_valid, validation_output = validate_nusmv_model(model_file)
 
         if is_valid:
-            print(f"\n✅ Model validated successfully after {attempt_count} attempts.")
+            print(f"\n Model validated successfully after {attempt_count} attempts.")
             return scenarios  # Return the refined scenarios if the model is valid
 
         # Extract violations from the validation output
         violations = extract_nusmv_violations(validation_output)
         
         if violations:
-            print(f"\n⚠️ Detected {len(violations)} violations. Regenerating scenarios...")
+            print(f"\n Detected {len(violations)} violations. Regenerating scenarios...")
             scenarios = regenerate_transition_rules(scenarios, validation_output)
             
             if not scenarios:
-                print("\n❌ Failed to regenerate scenarios. Stopping iteration.")
+                print("\n Failed to regenerate scenarios. Stopping iteration.")
                 return None
         else:
             print("\nNo specific violations found. Stopping iteration.")
             return None
 
     # If max_attempts is reached, return None
-    print(f"\n❌ Maximum attempts ({max_attempts}) reached. Violations could not be minimized.")
+    print(f"\n Maximum attempts ({max_attempts}) reached. Violations could not be minimized.")
     return None
 
 
@@ -842,9 +842,9 @@ while True:
     iteration_count, success, final_nusmv_model = nusmv_syntax_regeneration(validated_scenarios, validated_safety_properties, model_file)
 
     if success:
-        print(f"\n✅ NuSMV model validated successfully after {iteration_count} iterations.")
+        print(f"\n NuSMV model validated successfully after {iteration_count} iterations.")
     else:
-        print(f"\n❌ Failed to generate a valid NuSMV model after {iteration_count} iterations.")
+        print(f"\n Failed to generate a valid NuSMV model after {iteration_count} iterations.")
         print("Error details:", final_nusmv_model)
 
     
