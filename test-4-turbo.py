@@ -400,6 +400,9 @@ def parse_safety_property_to_ltl(safety_property):
     
 
 def feed_error_to_llm(model_file, nusmv_error, scenarios, safety_properties):
+    """
+    Refine the NuSMV model to fix syntax errors.
+    """
     with open(model_file, "r") as file:
         model_content = file.read()
 
@@ -418,11 +421,12 @@ def feed_error_to_llm(model_file, nusmv_error, scenarios, safety_properties):
     {model_content}
 
     Correct the model by:
-    1. Fixing syntax errors in `LTLSPEC` formulas.
+    1. Fixing syntax errors in the `TRANS` section and `LTLSPEC` formulas.
     2. Ensuring all variables are declared in the `VAR` section.
-    3. Verifying temporal operators are used properly.
-    4. Returning only the corrected model as plain text.
+    3. Verifying proper use of temporal operators and valid transitions.
+    Return only the corrected model as plain text.
     """
+
     try:
         response = model.invoke(prompt)
         corrected_model = extract_code_block(response.content)
@@ -431,14 +435,73 @@ def feed_error_to_llm(model_file, nusmv_error, scenarios, safety_properties):
         return corrected_model
     except Exception as e:
         print(f"Error during model correction: {e}")
+        return None
 
-def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.smv"):
+
+# def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.smv"):
+#     """
+#     Generate and refine an NuSMV model using LLM until there are no syntax errors.
+
+#     """
+#     iteration = 0
+#     while True:
+#         iteration += 1
+#         print(f"\n=== Process 1: Iteration {iteration} - Generating and Validating NuSMV Model ===")
+
+#         # Generate the initial or refined NuSMV model
+#         if iteration == 1:
+#             print("📝 Generating initial NuSMV model...")
+#             nusmv_model = generate_nusmv_model_with_llm(scenarios, safety_properties, output_file)
+#         else:
+#             print("🔄 Refining NuSMV model based on syntax error...")
+
+#         if not nusmv_model:
+#             print(f"❌ Failed to generate NuSMV model in iteration {iteration}. Retrying...\n")
+#             continue
+
+#         # Save the generated model to a file
+#         with open(output_file, "w") as file:
+#             file.write(nusmv_model)
+
+#         # Display the generated NuSMV model
+#         print("\n=== Generated NuSMV Model ===")
+#         print(nusmv_model)
+
+#         # Validate the NuSMV model for syntax errors
+#         is_valid, validation_output = validate_nusmv_model(output_file)
+
+#         if is_valid:
+#             print(f"\n✅ NuSMV model is valid and generated successfully after {iteration} iterations.\n")
+#             return iteration, True, nusmv_model
+#         else:
+#             # Display the syntax error
+#             print("\n⚠️ Syntax error detected:")
+#             print(validation_output)
+
+#             # Refine the model using the syntax error
+#             nusmv_model = feed_error_to_llm(output_file, validation_output, scenarios, safety_properties)
+#             if not nusmv_model:
+#                 print("❌ Failed to refine the model. Retrying...\n")
+#                 continue
+
+def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.smv", max_attempts=10):
     """
-    Generate and refine an NuSMV model using LLM until there are no syntax errors.
+    Generate and refine a NuSMV model using LLM until there are no syntax errors or max attempts is reached.
 
+    Args:
+        scenarios (list): List of IoT scenarios.
+        safety_properties (list): List of safety properties.
+        output_file (str): Path to save the NuSMV model.
+        max_attempts (int): Maximum number of iterations to try before stopping.
+
+    Returns:
+        tuple: (iteration_count, success_status, final_nusmv_model or error_message)
     """
     iteration = 0
-    while True:
+    repeated_error_count = 0  # Track repeated errors to stop if stuck in a loop
+    last_error = None  # Track the last error message
+
+    while iteration < max_attempts:
         iteration += 1
         print(f"\n=== Process 1: Iteration {iteration} - Generating and Validating NuSMV Model ===")
 
@@ -457,7 +520,6 @@ def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.s
         with open(output_file, "w") as file:
             file.write(nusmv_model)
 
-        # Display the generated NuSMV model
         print("\n=== Generated NuSMV Model ===")
         print(nusmv_model)
 
@@ -467,16 +529,32 @@ def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.s
         if is_valid:
             print(f"\n✅ NuSMV model is valid and generated successfully after {iteration} iterations.\n")
             return iteration, True, nusmv_model
-        else:
-            # Display the syntax error
-            print("\n⚠️ Syntax error detected:")
-            print(validation_output)
 
-            # Refine the model using the syntax error
-            nusmv_model = feed_error_to_llm(output_file, validation_output, scenarios, safety_properties)
-            if not nusmv_model:
-                print("❌ Failed to refine the model. Retrying...\n")
-                continue
+        # Display the syntax error
+        error_message = validation_output.splitlines()[0]
+        print("\n⚠️ Syntax error detected:")
+        print(error_message)
+
+        # Check for repeated error
+        if error_message == last_error:
+            repeated_error_count += 1
+        else:
+            repeated_error_count = 0
+            last_error = error_message
+
+        if repeated_error_count >= 2:  # Stop if the same error occurs 3 times consecutively
+            print(f"\n❌ Repeated syntax error detected. Stopping regeneration after {iteration} iterations.\n")
+            return iteration, False, "Repeated syntax error. Model validation failed."
+
+        # Refine the model using the syntax error
+        nusmv_model = feed_error_to_llm(output_file, validation_output, scenarios, safety_properties)
+        if not nusmv_model:
+            print("❌ Failed to refine the model. Retrying...\n")
+            continue
+
+    # If max_attempts is reached, return an error message
+    print(f"\n❌ Maximum attempts ({max_attempts}) reached. NuSMV model could not be validated.")
+    return iteration, False, "Maximum attempts reached. Model validation failed."
 
 
 
@@ -500,12 +578,10 @@ def generate_nusmv_model_with_llm(scenarios, safety_properties, output_file="mod
     1. A `MODULE main` declaration.
     2. A `VAR` section with all necessary variables and their types.
     3. An `ASSIGN` section with initial states for all variables.
-    4. Transition rules for the scenarios.
+    4. Transition rules for the scenarios (using proper syntax in `TRANS`).
     5. LTLSPECs for the safety properties.
 
-    Ensure the model adheres to NuSMV syntax and is ready for verification.
-
-    Your output must only contain the NuSMV model as plain text.
+    Ensure the model adheres to NuSMV syntax and contains no syntax errors. Return only the complete NuSMV model as plain text.
     """
 
     try:
@@ -513,7 +589,7 @@ def generate_nusmv_model_with_llm(scenarios, safety_properties, output_file="mod
         response = model.invoke(prompt)
         nusmv_model = response.content.strip()
 
-        # Remove triple backticks if present
+        # Remove any code block markers (```nusmv)
         if "```" in nusmv_model:
             nusmv_model = re.sub(r"```(?:nusmv)?\n(.*?)\n```", r"\1", nusmv_model, flags=re.DOTALL)
 
@@ -555,27 +631,71 @@ def validate_nusmv_model(model_file):
         return False, "NuSMV not found."
 
 
-def minimize_violations_with_llm(model_file, scenarios, safety_properties):
+# def minimize_violations_with_llm(model_file, scenarios, safety_properties):
+#     """
+#     Iteratively refine scenarios to minimize violations.
+#     """
+#     attempt_count = 0
+#     while True:
+#         attempt_count += 1
+#         print(f"\n=== Process 2: Iteration {attempt_count}: Minimizing violations...")
+#         # print(f"\nIteration {attempt_count}: Minimizing violations...")
+#         is_valid, validation_output = validate_nusmv_model(model_file)
+        
+#         if is_valid:
+#             print(f"\n✅ Model validated successfully after {attempt_count} attempts.")
+#             return scenarios
+#         violations = extract_nusmv_violations(validation_output)
+#         if violations:
+#             print(f"\n⚠️ Detected {len(violations)} violations. Regenerating scenarios...")
+#             scenarios = regenerate_transition_rules(scenarios, validation_output)
+#         else:
+#             print("\nNo specific violations found. Stopping iteration.")
+#             return None
+
+def minimize_violations_with_llm(model_file, scenarios, safety_properties, max_attempts=10):
     """
-    Iteratively refine scenarios to minimize violations.
+    Iteratively refine scenarios to minimize violations in the NuSMV model.
+
+    Args:
+        model_file (str): Path to the NuSMV model file.
+        scenarios (list): List of IoT scenarios.
+        safety_properties (list): List of safety properties.
+        max_attempts (int): Maximum number of iterations to try before stopping.
+
+    Returns:
+        list: Refined scenarios if validation is successful, None if it fails after max_attempts.
     """
     attempt_count = 0
-    while True:
+    while attempt_count < max_attempts:
         attempt_count += 1
         print(f"\n=== Process 2: Iteration {attempt_count}: Minimizing violations...")
-        # print(f"\nIteration {attempt_count}: Minimizing violations...")
+
+        # Validate the NuSMV model
         is_valid, validation_output = validate_nusmv_model(model_file)
-        
+
         if is_valid:
             print(f"\n✅ Model validated successfully after {attempt_count} attempts.")
-            return scenarios
+            return scenarios  # Return the refined scenarios if the model is valid
+
+        # Extract violations from the validation output
         violations = extract_nusmv_violations(validation_output)
+        
         if violations:
             print(f"\n⚠️ Detected {len(violations)} violations. Regenerating scenarios...")
             scenarios = regenerate_transition_rules(scenarios, validation_output)
+            
+            if not scenarios:
+                print("\n❌ Failed to regenerate scenarios. Stopping iteration.")
+                return None
         else:
             print("\nNo specific violations found. Stopping iteration.")
             return None
+
+    # If max_attempts is reached, return None
+    print(f"\n❌ Maximum attempts ({max_attempts}) reached. Violations could not be minimized.")
+    return None
+
 
 def extract_nusmv_violations(nusmv_output):
     """
