@@ -1,0 +1,121 @@
+MODULE main
+VAR
+    motion_sensor_bedroom : boolean;
+    motion_sensor_dining : boolean;
+    motion_sensor_living : boolean;
+    no_motion_house : boolean;
+    no_motion_kitchen : boolean;
+    no_motion_living : boolean;
+    all_doors_closed : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    windows_open : boolean;
+    movie_mode : boolean;
+    
+    Virtual_Light_bedroom : boolean;
+    Virtual_Light_kitchen : boolean;
+    Virtual_Light_dining : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan1 : boolean;
+    Virtual_Fan2 : boolean;
+    Virtual_Fan3 : boolean;
+    Virtual_Fan4 : {off, low, medium, high};
+    Virtual_Fan5 : {off, low, medium, high};
+    Virtual_TV1 : {off, on, muted};
+    Virtual_TV2 : boolean;
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light_bedroom) := FALSE;
+    init(Virtual_Light_kitchen) := FALSE;
+    init(Virtual_Light_dining) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan1) := FALSE;
+    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(Virtual_Fan4) := off;
+    init(Virtual_Fan5) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_TV2) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+
+    -- Scenario rules
+    next(Virtual_Light_bedroom) := case
+        motion_sensor_bedroom : TRUE;
+        no_motion_house : FALSE;
+        TRUE : Virtual_Light_bedroom;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor_bedroom : TRUE;
+        windows_open : FALSE; -- AC1 must not turn on if windows are open
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 6 : FALSE; -- Turn off at sunrise
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_Light_kitchen) := case
+        time = 6 : FALSE; -- Turn off at sunrise
+        TRUE : Virtual_Light_kitchen;
+    esac;
+
+    next(Virtual_TV2) := case
+        movie_mode : TRUE; -- Turn on TV2 in movie mode
+        TRUE : Virtual_TV2;
+    esac;
+
+    next(Virtual_Fan5) := case
+        movie_mode : low; -- Set Fan5 to low in movie mode
+        TRUE : Virtual_Fan5;
+    esac;
+
+    next(Virtual_AC3) := case
+        (all_doors_closed & no_motion_house) : FALSE; -- Turn off AC3 when all doors are closed and no motion detected
+        TRUE : Virtual_AC3;
+    esac;
+
+    next(Virtual_Light_dining) := case
+        motion_sensor_dining : TRUE; -- Turn on light when motion detected in dining room
+        TRUE : Virtual_Light_dining;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        motion_sensor_dining : TRUE; -- Turn on fridge when motion detected in dining room
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(Virtual_AC2) := case
+        temperature > 80 : TRUE; -- Turn on AC2 if temperature exceeds 80°F
+        temperature < 65 : FALSE; -- AC2 must not run if the temperature is below 65°F
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_Fan4) := case
+        temperature > 80 : low; -- Fan4 activates if temperature is high
+        TRUE : Virtual_Fan4;
+    esac;
+
+    next(Virtual_TV1) := case
+        (no_motion_living & time > 5) : muted; -- Mute TV1 if no motion detected in the living room for 5 minutes
+        (time >= 0 & time < 6) : off; -- TV1 must not turn on between midnight and 6 AM
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fan2) := case
+        time = 22 : FALSE; -- Turn off Fan2 at 10 PM
+        TRUE : Virtual_Fan2;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1); -- Virtual A/C 1 must not turn on when windows are open
+LTLSPEC G (no_motion_house -> F (!Virtual_Light_bedroom)); -- Virtual Light must turn off automatically if no motion is detected for 10 minutes
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3); -- Virtual Fan 3 must not run when the room temperature is below 68°F
+LTLSPEC G ((time >= 0 & time < 6) -> (Virtual_TV1 = off));
+LTLSPEC G (temperature < 65 -> !Virtual_AC2); -- Virtual A/C 2 must not run if the temperature is below 65°F

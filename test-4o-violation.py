@@ -2,6 +2,8 @@ import requests
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+# from langchain_openai import OpenAI
+from openai import OpenAI
 import os
 import subprocess
 import yaml
@@ -89,15 +91,62 @@ def get_smartthings_devices():
         return []
 
 # Initialize ChatOpenAI Model
-# model = ChatOpenAI(model="gpt-4o")
-OPENAI_API_KEY = "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"  # Load API Key from .env
+with open('api_key.txt', 'r') as file:
+    openai_api_key = file.read().strip()
+    
+openai_api_base = "https://api.lambdalabs.com/v1"
 
-# Initialize ChatOpenAI with Organization ID
-model = ChatOpenAI(
-    model="gpt-4o",
-    openai_api_key = OPENAI_API_KEY,
+
+# Initialize the OpenAI client
+client = OpenAI(
+    api_key=openai_api_key,
+    base_url=openai_api_base,
 )
 
+def invoke_vllm(prompt):
+    """
+    Sends a prompt to the LLM and returns the generated response.
+    Cleans the response to remove markdown formatting and ensure it's a valid NuSMV model.
+    """
+    try:
+        # Send the prompt to the LLM
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that strictly follows the user's instructions."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.0,  # Minimal randomness
+            timeout=30  # Set a timeout to avoid hanging
+        )
+        
+        if response and hasattr(response, 'choices'):
+            generated_content = response.choices[0].message.content
+            # Clean the response to remove markdown formatting
+            cleaned_content = re.sub(r"```(?:nusmv|plaintext)?\n", "", generated_content)
+            cleaned_content = re.sub(r"\n```", "", cleaned_content)
+            return cleaned_content.strip()
+        else:
+            print("❌ Invalid response format from LLM.")
+            return None
+    except Exception as e:
+        print(f"❌ Error invoking LLM: {e}")
+        return None
+
+
+# def get_llm_response(client, user_prompt):
+#     response = client.chat.completions.create(
+#         model="llama3.3-70b-instruct-fp8",  # Adjust model as needed
+#         messages=[
+#             {"role": "system", "content": "You are a helpful assistant that strictly follows the user's instructions."},
+#             {"role": "user", "content": user_prompt}
+#         ],
+#         temperature=0.0  # Minimal randomness
+#     )
+    
+#     return response.choices[0].message.content  # Extract response text
+
+    
 #############################
 # SCENARIOS VALIDATION
 #############################
@@ -151,7 +200,7 @@ def scenarios_validation(devices):
                 "scenario": scenario,
                 "device_list": ", ".join(devices)
             })
-            result = model.invoke(prompt)
+            result = invoke_vllm(prompt)
 
             print("\nAssistant Response:")
             print(result.content)
@@ -224,7 +273,7 @@ def safety_property_validation(devices):
                 "property": safety_property,
                 "device_list": ", ".join(devices)
             })
-            result = model.invoke(prompt)
+            result = invoke_vllm(prompt)
 
             print("\nAssistant Response:")
             print(result.content)
@@ -281,7 +330,7 @@ def prompt_based_validation(scenarios, safety_properties):
             "scenario": scenario,
             "properties": combined_properties
         })
-        result = model.invoke(prompt)
+        result = invoke_vllm(prompt)
 
         print(f"\nValidating Scenario: {scenario}")
         print("\nAssistant Response:")
@@ -324,11 +373,10 @@ def prompt_based_validation(scenarios, safety_properties):
 #############################
 
 def extract_code_block(content):
-    """
-    Extract and clean the NuSMV model from the LLM's response.
-    """
-    match = re.search(r"```(?:smv|plaintext)?\n(.*?)\n```", content, re.DOTALL)
-    return match.group(1).strip() if match else content.strip()
+    content = re.sub(r"```(?:smv|plaintext)?\n", "", content)
+    content = re.sub(r"\n```", "", content)
+
+    return content.strip()
 
 def validate_ltl_formula(formula):
     return "G" in formula or "F" in formula or "X" in formula
@@ -338,8 +386,8 @@ def parse_scenario_to_ltl(scenario):
     Convert the following IoT scenario into an LTL formula:
     Scenario: "{scenario}"
     """
-    response = model.invoke(prompt)
-    ltl_formula = response.content.strip()
+    response = invoke_vllm(prompt)
+    ltl_formula = response.strip()
     
     if not validate_ltl_formula(ltl_formula):
         raise ValueError(f"Invalid LTL formula: {ltl_formula}")
@@ -361,8 +409,8 @@ def parse_safety_property_to_ltl(safety_property):
     Ensure the formula uses valid NuSMV syntax.
     """
     try:
-        response = model.invoke(prompt)
-        ltl_formula = response.content.strip()
+        response = invoke_vllm(prompt)
+        ltl_formula = response.strip()
         if not validate_ltl_formula(ltl_formula):
             raise ValueError(f"Invalid LTL formula: {ltl_formula}")
         return ltl_formula
@@ -370,296 +418,532 @@ def parse_safety_property_to_ltl(safety_property):
         raise ValueError(f"Failed to parse safety property: {safety_property}. Error: {str(e)}")
     
 # Function to extract specific syntax errors from NuSMV logs
-def extract_nusmv_errors(nusmv_output):
-    """Extracts syntax errors and line numbers from NuSMV error logs."""
+def extract_nusmv_errors(nusmv_output, model_content):
+    """Extracts the exact failed line from NuSMV error logs."""
     errors = re.findall(r"file generated_model.smv: line (\d+): (.+)", nusmv_output)
-    return errors if errors else []
+    if not errors:
+        return None  # No errors found
+
+    failed_lines = []
+    for line_num, error_msg in errors:
+        try:
+            line_num = int(line_num)
+            failed_code = model_content.split("\n")[line_num - 1]  # Extract that line
+            failed_lines.append((line_num, failed_code, error_msg))
+        except IndexError:
+            failed_lines.append((line_num, "UNKNOWN (line not found)", error_msg))
+
+    return failed_lines
 
 # Function to refine only the erroneous lines in the NuSMV model using LLM
 def refine_nusmv_model(nusmv_model, error_log):
-    """Refine only the lines containing errors instead of regenerating the whole model."""
-    errors = extract_nusmv_errors(error_log)
-    if not errors:
-        print("No specific errors found to fix.")
-        return None
-
-    error_details = "\n".join([f"Line {line}: {desc}" for line, desc in errors])
-    print(f"\n🔍 Refining based on these errors:\n{error_details}")
-
-    # LLM Correction Prompt
     prompt = f"""
-    The following NuSMV model contains syntax errors:
+        The following NuSMV model contains syntax errors:
 
-    **Errors:**
-    {error_details}
+        **Errors:**
+        {error_log}
 
-    **Incorrect NuSMV Model:**
-    {nusmv_model}
+        **Incorrect NuSMV Model:**
+        {nusmv_model}
 
-    **Fix Instructions:**
-    - Modify only the incorrect lines while preserving the rest.
-    - Ensure all `next(variable) := value;` statements use correct NuSMV syntax.
-    - Ensure boolean and integer variables are assigned valid values.
-    - **DO NOT** include any backticks (```).
-    - **DO NOT** reformat the entire model; only correct the errors.
+        **Fix Instructions:**
+        - Correct the syntax errors in the `TRANS` section.
+        - Ensure all `next(variable) :=` statements are properly formatted.
+        - Ensure all `case` blocks end with `esac;`.
+        - Do not introduce new syntax errors.
+        - Follow the strict NuSMV syntax rules provided in the prompt.
 
-    Return only the corrected NuSMV model.
+        **Example of Correct NuSMV Syntax:**
+        ```smv
+        MODULE main
+        VAR
+        device1 : boolean;
+        device2 : {{off, low, medium, high}};
+
+        ASSIGN
+        init(device1) := FALSE;
+        init(device2) := off;
+
+        next(device1) := 
+            case
+            condition1 : TRUE;
+            condition2 : FALSE;
+            TRUE : device1;
+            esac;
+
+        LTLSPEC
+        G(!(device1 & device2 != off))
+
+    **Return only the corrected NuSMV model.**
     """
 
-    response = model.invoke(prompt)
-    corrected_model = extract_code_block(response.content)
-    return corrected_model
+    try:
+        response = invoke_vllm(prompt)
+        corrected_model = response.strip()
+        return corrected_model
+    except Exception as e:
+        print(f"❌ Error refining NuSMV model: {e}")
+        return nusmv_model  # Return the original model if refinement fails
 
-# Function to generate and refine the NuSMV model iteratively
+
+def is_valid_nusmv_model(model_content):
+    # Check for markdown formatting
+    if "```" in model_content:
+        return False
+    # Add other checks if necessary
+    return True
+
+def clean_nusmv_model(model_content):
+    """
+    Clean the NuSMV model by removing markdown formatting and repeated sections.
+    """
+    # Remove markdown formatting
+    model_content = re.sub(r"```(?:smv|plaintext)?\n", "", model_content)
+    model_content = re.sub(r"\n```", "", model_content)
+
+    # Remove unnecessary text
+    model_content = re.sub(r"Here is the corrected code:", "", model_content)
+    model_content = re.sub(r"Here is the corrected code in the format you requested:", "", model_content)
+
+    # Remove duplicate sections
+    lines = model_content.split("\n")
+    unique_lines = []
+    for line in lines:
+        if line.strip() not in unique_lines:
+            unique_lines.append(line.strip())
+    cleaned_model = "\n".join(unique_lines)
+
+    # Ensure the model starts with MODULE main and ends with LTLSPEC
+    if not cleaned_model.startswith("MODULE main"):
+        cleaned_model = "MODULE main\n" + cleaned_model
+    if not cleaned_model.strip().endswith("LTLSPEC"):
+        cleaned_model += "\nLTLSPEC"
+
+    return cleaned_model
+
+nusmv_generation_prompt = """
+You are an expert in NuSMV model generation. Your task is to create a **fully correct and NuSMV-compliant** model **without syntax errors**.
+
+**Input Details:**
+- Scenarios: {scenarios}
+- Safety Properties: {safety_properties}
+
+**Strict NuSMV Requirements:**
+1. Use `MODULE main` as the root module.
+2. Define all necessary variables under the `VAR` section.
+3. Initialize all variables correctly under the `ASSIGN` section.
+4. Use `ASSIGN` for state transitions instead of `TRANS`:
+   - Use `next(variable) := value;` for assignments.
+   - Use `case` blocks for conditional transitions, and ensure each `case` block ends with `esac;`.
+   - Do not use `:=` outside of `next(variable) :=` assignments.
+5. Safety properties must be in `LTLSPEC` format with valid LTL syntax.
+6. Use boolean (`TRUE/FALSE`) and integer variables properly.
+7. Use `low, medium, high` notation for multi-valued states.
+8. Ensure no missing variables or undefined references.
+9. **DO NOT** include explanations, comments, or markdown formatting (e.g., backticks, ```smv).
+10. **DO NOT** include text like "Here is your NuSMV model:".
+11. **DO NOT** repeat sections or generate invalid syntax.
+12. **DO NOT** include any text outside the NuSMV model (e.g., no "Here is the corrected code" or similar).
+13. **DO NOT** generate multiple `MODULE main` sections. Only one `MODULE main` is allowed.
+14. **Generate only the `LTLSPEC` statements that correspond to the provided safety properties.**
+
+**Example of Correct NuSMV Syntax:**
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..24;
+    temperature : 60..100;
+    movie_mode : boolean;
+    doors_closed : boolean;
+    no_motion : boolean;
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan1 : boolean;
+    Virtual_Fan2 : boolean;
+    Virtual_Fan4 : {{off, low, medium, high}};  -- Ensuring valid enum type
+    Virtual_Fan5 : {{off, low, high}};  -- Ensuring valid enum type
+    Virtual_TV1 : {{off, on, muted}};
+    Virtual_TV2 : boolean;
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Scenario rules
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan1) := FALSE;
+    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan4) := off;
+    init(Virtual_Fan5) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_TV2) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+    
+    next(Virtual_Light) := case
+        motion_sensor = TRUE : TRUE;
+        time = 6 : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+    
+    next(Virtual_AC1) := case
+        motion_sensor = TRUE : TRUE;
+        TRUE : Virtual_AC1;
+    esac;
+    
+    next(Virtual_AC2) := case
+        temperature > 80 : TRUE;
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_AC3) := case
+        (doors_closed & no_motion) = TRUE : FALSE;
+        TRUE : Virtual_AC3;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 6 : FALSE;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_Fan2) := case
+        time = 22 : FALSE;
+        TRUE : Virtual_Fan2;
+    esac;
+
+    next(Virtual_Fan4) := case
+        temperature > 85 : medium;  -- Matching enum type
+        temperature > 80 : low;  -- Matching enum type
+        TRUE : Virtual_Fan4;
+    esac;
+
+    next(Virtual_Fan5) := case
+        movie_mode = TRUE : low;  -- Matching enum type
+        TRUE : Virtual_Fan5;
+    esac;
+
+    next(Virtual_TV1) := case
+        no_motion = TRUE : muted;
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_TV2) := case
+        movie_mode = TRUE : TRUE;
+        TRUE : Virtual_TV2;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        motion_sensor = TRUE : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+LTLSPEC G (temperature < 70 -> !Virtual_AC3);
+LTLSPEC G (Virtual_AC2 -> temperature <= 78);
+LTLSPEC G ((Virtual_Fan5 != off) -> F motion_sensor);
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);
+
+### Key Adjustments for Scenario-to-NuSMV Mapping
+
+1. **Scenario Parsing**:
+   - Each scenario should be parsed into a `next(variable) :=` or `case` statement in the `ASSIGN` section.
+   - For example:
+     - Scenario: "When motion is detected by the Motion Sensor, turn on the Virtual Light."
+     - NuSMV Logic:
+       next(Virtual_Light) :=
+           case
+               motion_sensor = TRUE : TRUE;
+               TRUE : Virtual_Light;
+           esac;
+
+2. **Safety Property Integration**:
+   - The safety properties should be translated into `LTLSPEC` statements.
+   - For example:
+     - Safety Property: "Virtual Light must turn off automatically if no motion is detected for 10 minutes."
+     - NuSMV Logic:
+       LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+
+3. **Variable Definitions**:
+   - Ensure all variables used in the scenarios and safety properties are defined in the `VAR` section.
+   - For example:
+     VAR
+         motion_sensor : boolean;
+         Virtual_Light : boolean;
+         no_motion_for_10_minutes : boolean;
+     
+**Final Output**:  
+Return **only** the correctly formatted NuSMV model, with no extra text.
+"""
+
+def generate_nusmv_model(scenarios, safety_properties):
+    prompt = nusmv_generation_prompt.format(
+        scenarios="\n- ".join(scenarios),
+        safety_properties="\n- ".join(safety_properties))
+    response = invoke_vllm(prompt)
+    cleaned_model = clean_nusmv_model(response.strip())
+    
+    return cleaned_model
+
 def generate_valid_nusmv_model(scenarios, safety_properties, output_file="generated_model.smv"):
-    """Generate and refine the NuSMV model until it is valid."""
     iteration = 0
     last_error_log = None
+    nusmv_model = None
 
-    while iteration < 10:  # Prevent infinite loops
+    while True:  # Run indefinitely until no syntax errors
         iteration += 1
         print(f"\n=== Iteration {iteration}: Generating & Validating NuSMV Model ===")
 
         if iteration == 1:
-            # Initial model generation
-            prompt = f"""
-            Generate a NuSMV model with the following requirements:
-            - Include the given scenarios and safety properties.
-            - Ensure proper `VAR`, `ASSIGN`, `TRANS`, and `LTLSPEC` sections.
-            - Do not include syntax errors.
-
-            **Scenarios:**
-            {', '.join(scenarios)}
-
-            **Safety Properties:**
-            {', '.join(safety_properties)}
-
-            **Important Notes:**
-            - Use boolean and integer variables properly.
-            - Use `next(variable) := value;` for transitions.
-            - **DO NOT** include any special formatting (e.g., triple backticks).
-            - Ensure the model is NuSMV-compliant.
-            """
-            response = model.invoke(prompt)
-            nusmv_model = extract_code_block(response.content)
+            # Generate the initial NuSMV model
+            nusmv_model = generate_nusmv_model(scenarios, safety_properties)
         else:
-            print("🔄 Refining NuSMV model based on error log...")
+            # Refine the model based on the last error log
+            nusmv_model = refine_nusmv_model(nusmv_model, last_error_log)
 
-        # Print the NuSMV model in each iteration
-        print("\n🔍 Generated NuSMV Model:\n")
-        print(nusmv_model)
+        # Print the NuSMV model for debugging
+        print(f"\n🔍 NuSMV Model (Iteration {iteration}):\n{nusmv_model}\n")
 
-        # Save model to file
+        # Save the generated model to the specified output file
         with open(output_file, "w") as file:
             file.write(nusmv_model)
 
-        # Validate model
+        # Validate the NuSMV model
         is_valid, error_log = validate_nusmv_model(output_file)
 
         if is_valid:
             print(f"\n✅ NuSMV model validated successfully after {iteration} iterations.\n")
-            return nusmv_model  # Successfully generated model
+            return nusmv_model  # Exit the loop and return the valid model
 
-        print("\n⚠️ Syntax error detected:")
+        # If there are syntax errors, log them and continue refining
+        print("\n Syntax error detected:")
         print(error_log)
 
-        # Prevent infinite loop if LLM keeps failing to fix the same error
-        if error_log == last_error_log:
-            print("\n❗ Repeated error detected. Stopping infinite loop.")
-            print("\n🚨 **Manual Review Required:** Open `generated_model.smv` and manually inspect.")
-            return None
+        # Extract the exact line causing the error
+        error_lines = extract_nusmv_errors(error_log, nusmv_model)
+        if error_lines:
+            print("\n🔧 Error Details:")
+            for line_num, failed_code, error_msg in error_lines:
+                print(f"Line {line_num}: {failed_code} -> {error_msg}")
 
         last_error_log = error_log
-        nusmv_model = refine_nusmv_model(nusmv_model, error_log)
 
 
-def generate_nusmv_model_with_llm(scenarios, safety_properties):
-    """
-    Generate a NuSMV model using the LLM.
-    """
-    print("\nGenerating NuSMV model using LLM...")
+def extract_nusmv_errors(nusmv_output, model_content):
+    errors = re.findall(r"file generated_model.smv: line (\d+): (.+)", nusmv_output)
+    if not errors:
+        return None  # No errors found
 
-    prompt = f"""
-    Generate a complete NuSMV model with the following:
+    failed_lines = []
+    for line_num, error_msg in errors:
+        try:
+            line_num = int(line_num)
+            failed_code = model_content.split("\n")[line_num - 1]  # Extract that line
+            failed_lines.append((line_num, failed_code, error_msg))
+        except IndexError:
+            failed_lines.append((line_num, "UNKNOWN (line not found)", error_msg))
 
-    **Scenarios:**
-    {', '.join(scenarios)}
-
-    **Safety Properties:**
-    {', '.join(safety_properties)}
-
-    **Requirements:**
-    - `MODULE main`
-    - `VAR` section defining necessary variables.
-    - `ASSIGN` section initializing all variables.
-    - `TRANS` section for transition rules (Use `next(variable) := value;` format).
-    - `LTLSPEC` section for safety properties.
-
-    **Important:**
-    - Ensure no syntax errors.
-    - Use boolean (`TRUE/FALSE`) and integer variables properly.
-    - Use `next(variable) := value;` for transitions.
-    - Avoid incorrect `<->` (bi-conditional equivalence) in transitions.
-    - **DO NOT** include any formatting such as triple backticks (```smv ... ```).
-    - **DO NOT** include extra comments that NuSMV cannot parse.
-
-    Return **only** the valid NuSMV model.
-    """
-
-    try:
-        response = model.invoke(prompt)
-        nusmv_model = extract_code_block(response.content)
-        print("\n🔍 Generated NuSMV Model:\n", nusmv_model)
-        return nusmv_model
-    except Exception as e:
-        print(f"❌ Error generating NuSMV model: {e}")
-        return None
-
-def feed_error_to_llm(model_file, nusmv_error):
-    """
-    Feed NuSMV error back to LLM for correction.
-    """
-    with open(model_file, "r") as file:
-        model_content = file.read()
-
-    prompt = f"""
-    The following NuSMV model contains syntax errors:
-
-    **Error:**
-    {nusmv_error}
-
-    **Incorrect NuSMV Model:**
-    {model_content}
-
-    **Fix Instructions:**
-    - Correct only the syntax errors while preserving logic.
-    - Ensure `TRANS` statements use `next(variable) := value;` correctly.
-    - Ensure valid LTL syntax in `LTLSPEC`.
-    - **DO NOT** include any backticks (```).
-    - **DO NOT** use special formatting that may break parsing.
-
-    Return only the **corrected** NuSMV model.
-    """
-
-    try:
-        response = model.invoke(prompt)
-        corrected_model = extract_code_block(response.content)
-        return corrected_model
-    except Exception as e:
-        print(f"❌ Error correcting model: {e}")
-        return None
-
-
-
-def nusmv_syntax_regeneration(scenarios, safety_properties, output_file="model.smv"):
-    iteration = 0
-    last_error = None
-
-    while True:
-        iteration += 1
-        print(f"\n=== Iteration {iteration}: Generating & Validating NuSMV Model ===")
-
-        if iteration == 1:
-            nusmv_model = generate_nusmv_model_with_llm(scenarios, safety_properties)
-        else:
-            print("🔄 Refining NuSMV model based on error...")
-
-        if not nusmv_model:
-            print(f"❌ Failed to generate NuSMV model in iteration {iteration}. Retrying...\n")
-            continue
-
-        with open(output_file, "w") as file:
-            file.write(nusmv_model)
-
-        is_valid, validation_output = validate_nusmv_model(output_file)
-
-        if is_valid:
-            print(f"\n✅ NuSMV model validated successfully after {iteration} iterations.\n")
-            return nusmv_model  # Exit with valid model
-
-        print("\n⚠️ Syntax error detected:")
-        print(validation_output)
-
-        last_error = validation_output
-        nusmv_model = feed_error_to_llm(output_file, validation_output)
-
-        if not nusmv_model:
-            print("❌ Failed to refine the model. Retrying...\n")
-            continue
+    return failed_lines
 
 # =============================================
 # Process 2: Iterative Model Regeneration to Minimize Violations
 # =============================================
 
 def validate_nusmv_model(model_file):
-    """Run NuSMV to check for syntax errors."""
     try:
-        result = subprocess.run(["nusmv", model_file], capture_output=True, text=True)
+        result = subprocess.run(
+            ["NuSMV", model_file],
+            capture_output=True,
+            text=True
+        )
+
+        # If the command succeeds, return True and the output
         if result.returncode == 0:
-            return True, None
-        else:
-            return False, result.stderr
+            return True, result.stdout  # Return the standard output
+
+        # If the command fails, return False and the error message
+        return False, result.stderr
+
     except FileNotFoundError:
-        print("❌ NuSMV not found. Ensure it is installed and available in your PATH.")
-        return False, "NuSMV not found."
+        error_message = "NuSMV not found. Ensure it is installed and available in your PATH."
+        print(error_message)
+        return False, error_message
 
+    except Exception as e:
+        error_message = f"Error running NuSMV: {e}"
+        print(error_message)
+        return False, error_message
 
+def extract_nusmv_violations(nusmv_output):
+    if nusmv_output is None:
+        print("⚠️ No NuSMV output provided. Cannot extract violations.")
+        return []
 
-def minimize_violations_with_llm(model_file):
+    # Extract all lines where an LTLSPEC is false
+    violation_pattern = r"-- specification .*? is false"
+    violations = re.findall(violation_pattern, nusmv_output)
+
+    return violations
+
+def is_valid_nusmv_code(content):
     """
-    Iteratively refine scenarios to minimize violations in the NuSMV model.
+    Checks if the content is a valid NuSMV model.
     """
-    attempt_count = 0
+    # Basic validation: Ensure the content contains key NuSMV components
+    required_keywords = ["MODULE main", "VAR", "ASSIGN", "LTLSPEC"]
+    return all(keyword in content for keyword in required_keywords)
 
-    while True:
-        attempt_count += 1
-        print(f"\n=== Process 2: Iteration {attempt_count}: Minimizing violations...")
+def minimize_violations_with_llm(input_model, output_model, scenarios, safety_properties, max_iterations=50):
+    """
+    Iteratively refines the NuSMV model to minimize LTL violations.
+    """
+    print("\n🔄 Starting iterative violation minimization...")
 
-        is_valid, validation_output = validate_nusmv_model(model_file)
+    iteration = 0
+    violations = []
+    best_model = None  # Track the best model (with the fewest violations)
+    best_violations = float('inf')  # Track the fewest violations encountered
 
-        if is_valid:
-            print(f"\n✅ Model validated successfully after {attempt_count} attempts.")
-            return True  
+    while iteration < max_iterations:
+        iteration += 1
+        print(f"\n=== Iteration {iteration} ===")
 
-        violations = re.findall(r"LTLSPEC.*?is false", validation_output)
+        # Step 1: Validate the current model
+        is_valid, validation_output = validate_nusmv_model(input_model)
+
+        if not is_valid:
+            print("\n❌ Model contains syntax errors. Attempting correction first.")
+            syntax_fixed_model = refine_nusmv_model(input_model, validation_output)
+
+            with open(output_model, "w") as file:
+                file.write(syntax_fixed_model)
+
+            print("\n✅ Syntax errors corrected. Retrying validation.")
+            input_model = output_model  # Update input_model to the corrected model
+            continue
+
+        # Step 2: Extract violations from the validation output
+        violations = extract_nusmv_violations(validation_output)
 
         if not violations:
-            print("\n✅ No specific violations found. Stopping iteration.")
-            return True  
+            print("\n✅ No violations detected. Model is now valid.")
+            return True  # No more violations, exit loop
 
-        print(f"\n🔄 Detected {len(violations)} violations. Regenerating model to minimize them...")
+        print(f"\n🚨 **Detected {len(violations)} failing LTL properties.**\n")
+        print("Failing LTL Properties:")
+        for violation in violations:
+            print(f"- {violation}")
 
-        with open(model_file, "r") as file:
+        # Step 3: Load the current NuSMV model
+        with open(input_model, "r") as file:
             model_content = file.read()
 
+        # Step 4: Generate a prompt for the LLM to refine the transition rules
         prompt = f"""
-        The following NuSMV model has detected violations:
-        {validation_output}
+        **The following NuSMV model has {len(violations)} failing LTL properties.**
+        Your task is to fix **all violations** by modifying the `ASSIGN` section of the model.
 
-        **Current Model:**
+        **Current Model (`{input_model}`):**
+        ```
         {model_content}
+        ```
 
-        **Fix Instructions:**
-        - Modify only the necessary transition rules to minimize violations.
-        - Ensure that all logic remains consistent.
-        - Keep all valid constraints and safety properties intact.
+        **Failing LTL Properties:**
+        ```
+        {validation_output}
+        ```
 
-        Return only the **updated** NuSMV model.
+        ### **🔧 Your Task**
+        ✔️ **Modify only the `next(variable) :=` transition rules** in `ASSIGN`.  
+        ✔️ **Ensure all LTL properties are satisfied.**  
+        ✔️ **Return only the corrected NuSMV model—no explanations, no extra text.**  
+        ✔️ **Strictly follow NuSMV syntax:**  
+        - Every `case` block **must end with `esac;`  
+        - Ensure all `next(variable) :=` assignments are **valid and logical**  
+        - **No missing variables, no undefined references**  
+
+        ---
+
+        ### ** Invalid Responses Will Be Rejected If:**
+        ❌ Multiple `MODULE main` declarations  
+        ❌ No changes are made to `next(variable) :=`  
+        ❌ LTL violations are not reduced  
+        ❌ Syntax errors are present  
+
+        **Scenarios:**
+        ```
+        {scenarios}
+        ```
+
+        **Safety Properties:**
+        ```
+        {safety_properties}
+        ```
+
+        **Return only the corrected NuSMV model.**
         """
 
         try:
-            response = model.invoke(prompt)
-            refined_model = extract_code_block(response.content)
-            with open(model_file, "w") as file:
-                file.write(refined_model)
+            # Invoke the LLM to refine the transition rules
+            response = invoke_vllm(prompt)
+
+            if response is None:
+                print("\n❌ Error: No response received from LLM.")
+                continue
+
+            response = response.strip()
+
+            # Debug: Print the regenerated model
+            print("\n🔄 LLM Response:")
+            print(response)
+
+            # Step 5: Validate the LLM's response for basic NuSMV syntax
+            if not is_valid_nusmv_code(response):
+                print("\n❌ LLM returned invalid NuSMV code. Retrying...")
+                continue  # Retry if model is invalid
+
+            # Save the refined model
+            with open(output_model, "w") as file:
+                file.write(response)
+
+            print(f"\n✅ Model successfully regenerated and saved to `{output_model}`.")
+
+            # Step 6: Validate the new model
+            is_valid, validation_output = validate_nusmv_model(output_model)
+
+            if not is_valid:
+                print("\n❌ Newly generated model still contains errors.")
+                continue
+
+            # Step 7: Check if violations have been reduced
+            new_violations = extract_nusmv_violations(validation_output)
+            if len(new_violations) < len(violations):
+                print(f"\n✅ Violations reduced from {len(violations)} to {len(new_violations)}.")
+                violations = new_violations
+                best_model = response  # Update the best model
+                best_violations = len(new_violations)
+            else:
+                print("\n❌ No reduction in violations. Reverting to the best model.")
+                if best_model:
+                    with open(output_model, "w") as file:
+                        file.write(best_model)
+                    violations = best_violations
+
+            # 🔥 Update input_model to the latest refined model
+            input_model = output_model
+
+            # Exit if all violations are resolved
+            if not violations:
+                print("\n✅ **All LTL properties satisfied. Final model is valid.**")
+                return True
+
         except Exception as e:
-            print(f"❌ Error regenerating transition rules: {e}")
-            return False
+            print(f"❌ Error regenerating transitions: {e}")
+            continue
 
-
-def extract_nusmv_violations(nusmv_output):
-    violation_pattern = r"LTLSPEC.*?is false"
-    return re.findall(violation_pattern, nusmv_output)
+    print(f"\n❌ Failed to minimize violations after {max_iterations} iterations.")
+    return False
 
 
 def regenerate_transition_rules(scenarios, nusmv_error):
@@ -670,8 +954,8 @@ def regenerate_transition_rules(scenarios, nusmv_error):
     Modify the transition rules to reduce violations.
     """
     try:
-        response = model.invoke(prompt)
-        return eval(response.content.strip())
+        response = invoke_vllm(prompt)
+        return eval(response.strip())
     except Exception as e:
         print(f"❌ Error regenerating transition rules: {e}")
         return None
@@ -718,8 +1002,8 @@ def parse_scenario_to_components(scenario):
     2. Action: The action to be performed.
     3. Devices: The devices involved in the scenario.
     """
-    response = model.invoke(prompt)
-    return response.content.strip()  # Clean the output
+    response = invoke_vllm(prompt)
+    return response.strip()  # Clean the output
 
 def apply_scenarios_to_smartthings(yaml_file):
     """
@@ -763,16 +1047,16 @@ def apply_scenarios_to_smartthings(yaml_file):
 # Main Workflow
 while True:
     # Step 1: Fetch SmartThings devices
-    devices = get_smartthings_devices()
-    if not devices:
-        print("No devices retrieved from SmartThings. Exiting.")
-        exit()
+    # devices = get_smartthings_devices()
+    # if not devices:
+    #     print("No devices retrieved from SmartThings. Exiting.")
+    #     exit()
 
     # Step 2: Collect and validate scenarios
-    validated_scenarios = scenarios3
+    validated_scenarios = scenarios1
 
     # Step 3: Collect safety properties
-    validated_safety_properties = safety_properties3
+    validated_safety_properties = safety_properties1
 
     # Step 4: Prompt-Based Validation
 
@@ -791,8 +1075,8 @@ while True:
     # else:
     #     print("\nNo conflicts detected in prompt-based validation.")
 
+    # model_file = "./Ground-Truth-NuSMV-test/1-1.smv"
     model_file = "generated_model.smv"
-
     # Generate the NuSMV model using the LLM
     # iteration_count, success, final_nusmv_model = nusmv_syntax_regeneration(validated_scenarios, validated_safety_properties, model_file)
 
@@ -801,17 +1085,17 @@ while True:
     # else:
     #     print(f"\n Failed to generate a valid NuSMV model after {iteration_count} iterations.")
     #     print("Error details:", final_nusmv_model)
-    valid_nusmv_model = generate_valid_nusmv_model(scenarios3, safety_properties3, model_file)
+    # valid_nusmv_model = generate_valid_nusmv_model(validated_scenarios, validated_safety_properties, model_file)
 
-    if valid_nusmv_model:
-        print("\n✅ Process 1 completed successfully. Ready for Process 2!")
-    else:
-        print("\n❌ Failed to generate a valid NuSMV model. Exiting.")
+    # if valid_nusmv_model:
+    #     print("\n✅ Process 1 completed successfully. Ready for Process 2!")
+    # else:
+    #     print("\n❌ Failed to generate a valid NuSMV model. Exiting.")
     
 
     # Step 5: NuSMV Validation with Infinite Retry Mechanism
 
-    print("\nGenerating NuSMV model and running formal verification...")
+    # print("\nGenerating NuSMV model and running formal verification...")
 
     # model_file = "generated_model.smv"
     # generate_smv_with_ltl(validated_scenarios, validated_safety_properties, model_file)
@@ -836,11 +1120,13 @@ while True:
 
     print("\nStarting iterative violation minimization...")
     # final_scenarios = minimize_violations_with_llm(model_file, validated_scenarios, validated_safety_properties)
-    final_scenarios = minimize_violations_with_llm(model_file)
+    # Input and output NuSMV files
+    input_model = "./Ground-Truth-NuSMV/1-1.smv"
+    output_model = "./Ground-Truth-NuSMV/1-1-regen.smv"
 
-    if not final_scenarios:
-        print("Failed to minimize violations. Exiting.")
-        exit()
+    # Run the iterative violation minimization
+    minimize_violations_with_llm(input_model, output_model, scenarios1, safety_properties1)
+
 
     # Step 6: Convert scenarios to YAML
     # yaml_file = scenarios_to_yaml(validated_scenarios)
@@ -849,3 +1135,4 @@ while True:
     # apply_scenarios_to_smartthings(yaml_file)
 
     break
+

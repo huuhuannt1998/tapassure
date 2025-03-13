@@ -1,0 +1,110 @@
+MODULE main
+VAR
+    virtual_switch : boolean;
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    daylight : boolean;
+    room_occupied : boolean;
+    no_one_detected : boolean;
+    motion_living_room : boolean;
+    inactivity_time_tv4 : 0..30;  -- Tracks inactivity for Virtual TV 4
+    fridge_open_time : 0..5;  -- Tracks fridge open duration
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan2 : boolean;
+    Virtual_Fan3 : boolean;
+    Virtual_Fan5 : boolean;
+    Virtual_TV3 : boolean;
+    Virtual_TV4 : boolean;
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(Virtual_Fan5) := FALSE;
+    init(Virtual_TV3) := FALSE;
+    init(Virtual_TV4) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+    init(inactivity_time_tv4) := 0;
+    init(fridge_open_time) := 0;
+
+    -- Device activation rules
+    next(Virtual_Light) := case
+        virtual_switch : TRUE; -- Light turns on when switch is activated
+        (daylight & !motion_sensor) : FALSE; -- Light must not turn on during daylight unless motion is detected
+        no_motion : FALSE; -- Light turns off if no motion detected for 10 minutes
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_Fan5) := case
+        virtual_switch : TRUE; -- Fan 5 turns on when switch is activated
+        TRUE : Virtual_Fan5;
+    esac;
+
+    next(Virtual_AC3) := case
+        !room_occupied : FALSE; -- AC3 turns off when leaving home
+        TRUE : Virtual_AC3;
+    esac;
+
+    next(Virtual_Fan3) := case
+        !room_occupied : FALSE; -- Fan 3 turns off when leaving home
+        temperature > 75 : TRUE; -- Fan 3 turns on when temperature exceeds 75°F
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(Virtual_AC1) := case
+        (motion_sensor & temperature > 75 & !away_mode) : TRUE; -- AC1 turns on if motion detects high temperature, not in away mode
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_Fan2) := case
+        (motion_sensor & temperature > 75 & !away_mode) : TRUE; -- Fan2 turns on if motion detects high temperature, not in away mode
+        (motion_living_room) : TRUE; -- Fan2 turns on when motion detected in living room
+        TRUE : Virtual_Fan2;
+    esac;
+
+    next(Virtual_AC2) := case
+        (motion_living_room & temperature >= 65 & !away_mode) : TRUE; -- AC2 turns on if motion detected and temp is above 65°F, not in away mode
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_TV3) := case
+        (no_one_detected) : FALSE; -- TV3 turns off if no one detected
+        TRUE : Virtual_TV3;
+    esac;
+
+    next(Virtual_TV4) := case
+        (no_one_detected & inactivity_time_tv4 >= 30) : FALSE; -- TV4 turns off if inactive for 30 minutes
+        TRUE : Virtual_TV4;
+    esac;
+
+    -- Inactivity timer for TV4 (capped at 30)
+    next(inactivity_time_tv4) := case
+        (Virtual_TV4 & no_one_detected & inactivity_time_tv4 < 30) : inactivity_time_tv4 + 1;
+        (!no_one_detected) : 0;
+        TRUE : inactivity_time_tv4;
+    esac;
+
+    -- Fridge open timer (capped at 5)
+    next(fridge_open_time) := case
+        (Virtual_Fridge1 & fridge_open_time < 5) : fridge_open_time + 1;
+        !Virtual_Fridge1 : 0;
+        TRUE : fridge_open_time;
+    esac;
+
+LTLSPEC G (away_mode -> !motion_sensor); -- Virtual Motion Sensor must not trigger devices in 'away mode'
+LTLSPEC G ((daylight & !motion_sensor) -> !Virtual_Light); -- Virtual Light must not turn on during daylight unless motion is detected
+LTLSPEC G (!((Virtual_Fan2 = TRUE) & (Virtual_Fan3 = TRUE) & (Virtual_Fan5 = TRUE))); -- Multiple Virtual Fans must not run in the same room simultaneously
+LTLSPEC G ((Virtual_TV4 & no_one_detected) -> F (!Virtual_TV4)); -- Virtual TV4 must turn off if no activity is detected for 30 minutes
+LTLSPEC G (fridge_open_time > 2 -> !Virtual_Fridge1); -- Virtual Fridge 1 must not remain open for more than 2 minutes

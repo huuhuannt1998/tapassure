@@ -1,0 +1,83 @@
+MODULE main
+VAR
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    occupied_room : boolean;
+    dark_area : boolean;
+    activity_detected : boolean;
+    inactivity_time : 0..15;  -- Tracks inactivity duration for TV3
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : {off, on, eco};  -- AC1 has an 'eco mode'
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : boolean;
+    Virtual_TV3 : {off, on, muted};  -- TV3 has a 'muted' state
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := off;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := FALSE;
+    init(Virtual_TV3) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(inactivity_time) := 0;
+
+    -- Merged Virtual_Light conditions
+    next(Virtual_Light) := case
+        (motion_sensor & occupied_room) : TRUE;  -- Light activates only in occupied rooms
+        (motion_sensor & dark_area) : TRUE;  -- Light activates only in dark areas
+        no_motion : FALSE;  -- Light turns off if no motion detected
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        no_motion : eco; -- AC1 switches to eco mode when no one is home
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 : TRUE;  -- TV1 turns on at sunset
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fan1) := case
+        (time = 18 & !Virtual_AC2) : medium;  -- Fan1 set to medium at sunset if AC2 is not running
+        Virtual_AC2 : off;  -- Fan1 deactivates when AC2 is running
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;  -- Fridge1 turns on at 7 AM
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 : TRUE;  -- AC2 turns on at 7 AM
+        TRUE : Virtual_AC2;
+    esac;
+
+    -- TV3 auto-mute logic
+    next(Virtual_TV3) := case
+        (Virtual_TV3 = on & inactivity_time >= 15) : muted; -- Mutes TV3 if inactive for 15 minutes
+        TRUE : Virtual_TV3;
+    esac;
+
+    -- Inactivity timer for TV3 (capped at 15)
+    next(inactivity_time) := case
+        (Virtual_TV3 = on & !activity_detected & inactivity_time < 15) : inactivity_time + 1;
+        (activity_detected) : 0;
+        TRUE : inactivity_time;
+    esac;
+
+LTLSPEC G ((Virtual_TV3 = on & !activity_detected) -> F (Virtual_TV3 = muted)); -- TV3 must mute automatically after 15 minutes of inactivity
+LTLSPEC G (no_motion -> Virtual_AC1 = eco); -- AC1 must switch to eco mode when no one is home
+LTLSPEC G ((motion_sensor -> occupied_room) -> Virtual_Light); -- Motion Sensor must activate Virtual Light only in occupied rooms
+LTLSPEC G ((motion_sensor & dark_area) -> Virtual_Light); -- Virtual Light must activate only when motion is detected in dark areas
+LTLSPEC G (Virtual_AC2 -> Virtual_Fan1 = off); -- Fan1 must deactivate when AC2 is running

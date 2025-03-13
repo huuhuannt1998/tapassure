@@ -1,0 +1,104 @@
+MODULE main
+VAR
+    virtual_switch : boolean;
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    room_occupied : boolean;
+    motion_living_room : boolean;
+    dark_area : boolean;
+    activity_detected : boolean;
+    no_one_home : boolean;
+    inactivity_time_tv3 : 0..15;  -- Tracks inactivity for Virtual TV 3
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : {off, on, eco};  -- AC1 has an 'eco mode'
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan1 : boolean;
+    Virtual_Fan2 : boolean;
+    Virtual_Fan3 : boolean;
+    Virtual_Fan5 : boolean;
+    Virtual_TV3 : {off, on, muted};  -- TV3 has a 'muted' state
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := off;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan1) := FALSE;
+    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(Virtual_Fan5) := FALSE;
+    init(Virtual_TV3) := off;
+    init(inactivity_time_tv3) := 0;
+
+    -- Device activation rules
+    next(Virtual_Light) := case
+        virtual_switch : TRUE; -- Light turns on when switch is activated
+        (motion_sensor & room_occupied) : TRUE; -- Motion Sensor activates Virtual Light only in occupied rooms
+        (motion_sensor & dark_area) : TRUE; -- Virtual Light activates only in dark areas
+        no_motion : FALSE; -- Light turns off if no motion detected for 10 minutes
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_Fan5) := case
+        virtual_switch : TRUE; -- Fan 5 turns on when switch is activated
+        TRUE : Virtual_Fan5;
+    esac;
+
+    next(Virtual_AC3) := case
+        !room_occupied : FALSE; -- AC3 turns off when leaving home
+        TRUE : Virtual_AC3;
+    esac;
+
+    next(Virtual_Fan3) := case
+        !room_occupied : FALSE; -- Fan 3 turns off when leaving home
+        temperature > 75 : TRUE; -- Fan 3 turns on when temperature exceeds 75°F
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(Virtual_AC1) := case
+        (motion_sensor & temperature > 75) : on; -- Use enum value 'on' instead of 'TRUE'
+        no_one_home : eco; -- Keep enum value 'eco'
+        TRUE : Virtual_AC1; -- Keep the existing value
+    esac;
+
+
+    next(Virtual_Fan2) := case
+        (motion_sensor & temperature > 75) : TRUE; -- Fan2 turns on if motion detects high temperature
+        (motion_living_room) : TRUE; -- Fan2 turns on when motion detected in living room
+        TRUE : Virtual_Fan2;
+    esac;
+
+    next(Virtual_AC2) := case
+        (motion_living_room) : TRUE; -- AC2 turns on when motion is detected in the living room
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_Fan1) := case
+        Virtual_AC2 : FALSE; -- Fan1 must deactivate when AC2 is running
+        TRUE : Virtual_Fan1;
+    esac;
+
+    -- TV3 auto-mute logic
+    next(Virtual_TV3) := case
+        (Virtual_TV3 = on & inactivity_time_tv3 >= 15) : muted; -- Use enum consistently
+        TRUE : Virtual_TV3;
+    esac;
+
+
+    -- Inactivity timer for TV3
+    next(inactivity_time_tv3) := case
+        (Virtual_TV3 = on & !activity_detected & inactivity_time_tv3 < 15) : inactivity_time_tv3 + 1;
+        activity_detected : 0;
+        TRUE : inactivity_time_tv3;
+    esac;
+
+LTLSPEC G ((Virtual_TV3 = on & !activity_detected) -> F (Virtual_TV3 = muted)); -- Virtual TV3 must mute automatically after 15 minutes of inactivity
+LTLSPEC G (no_one_home -> Virtual_AC1 = eco); -- AC1 must switch to eco mode when no one is home
+LTLSPEC G ((motion_sensor -> room_occupied) -> Virtual_Light); -- Motion Sensor must activate Virtual Light only in occupied rooms
+LTLSPEC G ((motion_sensor & dark_area) -> Virtual_Light); -- Virtual Light must activate only when motion is detected in dark areas
+LTLSPEC G (Virtual_AC2 -> !Virtual_Fan1); -- Fan1 must deactivate when AC2 is running

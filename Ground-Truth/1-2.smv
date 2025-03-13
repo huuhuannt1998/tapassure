@@ -1,0 +1,77 @@
+MODULE main
+VAR
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    daylight : boolean;
+    activity_detected : boolean;
+    fridge_open_time : 0..10;  -- Tracks fridge open duration
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_Fan2 : {off, low, medium, high};
+    Virtual_TV1 : boolean;
+    Virtual_TV4 : boolean;
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_Fan2) := off;
+    init(Virtual_TV1) := FALSE;
+    init(Virtual_TV4) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+    init(fridge_open_time) := 0;
+
+    -- Merged Virtual_Light conditions
+    next(Virtual_Light) := case
+        (motion_sensor & !away_mode) : TRUE;
+        (motion_sensor & away_mode) : TRUE;
+        no_motion : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        no_motion : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 : TRUE;
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 : TRUE;
+        TRUE : Virtual_AC2;
+    esac;
+
+    -- Fridge open timer (capped at 10)
+    next(fridge_open_time) := case
+        (Virtual_Fridge1 & fridge_open_time < 10) : fridge_open_time + 1;
+        !Virtual_Fridge1 : 0;
+        TRUE : fridge_open_time;
+    esac;
+
+LTLSPEC G (away_mode -> !motion_sensor); -- Virtual Motion Sensor must not trigger devices in 'away mode'
+LTLSPEC G ((daylight & !motion_sensor) -> !Virtual_Light); -- Virtual Light must not turn on during daylight unless motion is detected
+LTLSPEC G (!((Virtual_Fan1 != off) & (Virtual_Fan2 != off))); -- Multiple Virtual Fans must not run in the same room simultaneously
+LTLSPEC G ((Virtual_TV4 & !activity_detected) -> F (!Virtual_TV4)); -- Virtual TV4 must turn off if no activity is detected
+LTLSPEC G (fridge_open_time > 2 -> !Virtual_Fridge1); -- Virtual Fridge 1 must not remain open for more than 2 minutes

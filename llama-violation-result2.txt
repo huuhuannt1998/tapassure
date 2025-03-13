@@ -1,0 +1,963 @@
+ next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ No reduction in violations. Retrying...
+
+=== Iteration 4 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & away_mode = TRUE : TRUE;
+        motion_sensor = TRUE & !no_motion_for_10_minutes : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        time <> 7 | temperature < 65 : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        time <> 18 : off;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & (time < 24 & time >= 6) : on;
+        time = 19 & (time < 24 & time >= 6) : on;
+        time >= 6 & time < 24 & Virtual_TV1 = on : on;
+        time >= 6 & time < 24 & Virtual_TV1 = off : off;
+        TRUE : off;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time <> 7 : FALSE;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature >= 68 : TRUE;
+        temperature < 68 : FALSE;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ Newly generated model still contains errors.
+
+=== Iteration 5 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & no_motion_for_10_minutes = FALSE : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        TRUE : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 & motion_sensor = TRUE : medium;
+        time = 19 & motion_sensor = TRUE : medium;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & motion_sensor = TRUE : on;
+        time = 19 & motion_sensor = TRUE : on;
+        time >= 20 | time < 6 : off;
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time > 7 : FALSE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+✅ Violations reduced from 16 to 14.
+
+=== Iteration 6 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & !no_motion_for_10_minutes : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE | windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        TRUE : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & (time < 24 & time >= 6) : on;
+        time = 19 & Virtual_TV1 = on : on;
+        time >= 6 & time < 24 & Virtual_TV1 = on : on;
+        TRUE : off;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time = 8 : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ No reduction in violations. Retrying...
+
+=== Iteration 7 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & !no_motion_for_10_minutes : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        TRUE : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & (time < 24 & time >= 6) : on;
+        time >= 6 & time < 24 & Virtual_TV1 = on : on;
+        time = 19 & Virtual_TV1 = on : on;
+        TRUE : off;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time = 8 : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ No reduction in violations. Retrying...
+
+=== Iteration 8 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & away_mode = TRUE : TRUE;
+        motion_sensor = TRUE & !no_motion_for_10_minutes = TRUE : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        temperature < 65 : FALSE;
+        TRUE : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & (time < 24 & time >= 6) : on;
+        time >= 6 & time < 24 & Virtual_TV1 = on : on;
+        time < 6 | time >= 24 : off;
+        TRUE : off;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time = 8 : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ No reduction in violations. Retrying...
+
+=== Iteration 9 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & !no_motion_for_10_minutes : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        TRUE : FALSE;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        time != 18 : off;
+    esac;
+
+    next(Virtual_TV1) := case
+        time = 18 & (time < 24 & time >= 6) : on;
+        time = 19 & (time < 24 & time >= 6) : on;
+        time >= 6 & time < 24 & Virtual_TV1 = on : on;
+        TRUE : off;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time = 8 : TRUE;
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+❌ No reduction in violations. Retrying...
+
+=== Iteration 10 ===
+
+🚨 **Detected 16 failing LTL properties.**
+
+**Violations:** ['-- specification  G (time = 7 -> Virtual_Fridge1 = TRUE)  is false', '-- specification  G (time = 18 -> Virtual_TV1 = on)  is false', '-- specification  G (time = 18 -> Virtual_Fan1 = medium)  is false', '-- specification  G (Virtual_TV1 = off -> (time < 6 | time >= 24))  is false', '-- specification  G (Virtual_TV1 = off -> time < 6)  is false', '-- specification  G (Virtual_TV1 = off -> time >= 24)  is false', '-- specification  G (Virtual_TV1 = on -> time = 18)  is false', '-- specification  G (Virtual_Fan1 = medium -> time = 18)  is false', '-- specification  G (no_motion_for_10_minutes -> !Virtual_Light)  is false', '-- specification  G (temperature < 65 -> !Virtual_AC2)  is false', '-- specification  G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE)  is false', '-- specification  G (Virtual_AC2 -> temperature >= 65)  is false', '-- specification  G (Virtual_Light -> motion_sensor = TRUE)  is false', '-- specification  G (Virtual_Light -> !no_motion_for_10_minutes)  is false', '-- specification  G (motion_sensor = FALSE ->  X ( X ( X ( X ( X ( X ( X ( X ( X ( X !Virtual_Light))))))))))  is false', '-- specification  G (Virtual_AC2 -> time = 7)  is false']
+
+🔄 LLM Response:
+MODULE main
+VAR
+    motion_sensor : boolean;
+    time : 0..23;
+    temperature : 60..100;
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_TV1 : {off, on};
+    Virtual_Fridge1 : boolean;
+    windows_open : boolean;
+    away_mode : boolean;
+    no_motion_for_10_minutes : boolean;
+    Virtual_Fan3 : boolean;
+    no_motion : boolean;
+
+ASSIGN
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_TV1) := off;
+    init(Virtual_Fridge1) := FALSE;
+    init(windows_open) := FALSE;
+    init(away_mode) := FALSE;
+    init(no_motion_for_10_minutes) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(no_motion) := TRUE;
+    init(time) := 0;
+
+    next(Virtual_Light) := case
+        motion_sensor = TRUE & no_motion_for_10_minutes = FALSE : TRUE;
+        no_motion_for_10_minutes = TRUE : FALSE;
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        motion_sensor = TRUE & windows_open = FALSE : Virtual_AC1;
+        motion_sensor = FALSE : FALSE;
+        windows_open = TRUE : FALSE;
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 & temperature >= 65 : TRUE;
+        time != 7 | temperature < 65 : FALSE;
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium;
+        time != 18 : Virtual_Fan1;
+    esac;
+
+    next(Virtual_TV1) := case
+        time >= 6 & time < 24 & time = 18 : on;
+        time >= 6 & time < 24 & time = 19 : on;
+        time < 6 | time >= 24 | time = 21 : off;
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE;
+        time != 7 : Virtual_Fridge1;
+    esac;
+
+    next(windows_open) := windows_open;
+    next(away_mode) := away_mode;
+    next(no_motion_for_10_minutes) := case
+        motion_sensor = FALSE : TRUE;
+        TRUE : no_motion_for_10_minutes;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature >= 68 : Virtual_Fan3;
+        temperature < 68 : FALSE;
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(no_motion) := case
+        motion_sensor = TRUE : FALSE;
+        TRUE : no_motion;
+    esac;
+
+    next(time) := case
+        time = 23 : 0;
+        TRUE : time + 1;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_minutes -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);
+LTLSPEC G (motion_sensor = TRUE & away_mode = TRUE -> Virtual_Light = TRUE);
+LTLSPEC G (time = 7 -> Virtual_Fridge1 = TRUE);
+LTLSPEC G (time = 18 -> Virtual_TV1 = on);
+LTLSPEC G (time = 18 -> Virtual_Fan1 = medium);
+LTLSPEC G (motion_sensor = FALSE -> next(Virtual_AC1) = FALSE);
+LTLSPEC G (no_motion_for_10_minutes -> next(Virtual_Light) = FALSE);
+LTLSPEC G (Virtual_AC2 -> temperature >= 65);
+LTLSPEC G (Virtual_Fan3 -> temperature >= 68);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6 & time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time < 6 | time >= 24);
+LTLSPEC G (Virtual_AC1 -> !windows_open);
+LTLSPEC G (Virtual_AC1 -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_TV1 = on -> time >= 6);
+LTLSPEC G (Virtual_TV1 = off -> time < 6);
+LTLSPEC G (Virtual_Light -> motion_sensor = TRUE);
+LTLSPEC G (Virtual_Light -> !no_motion_for_10_minutes);
+LTLSPEC G (no_motion -> !Virtual_Light);
+LTLSPEC G (motion_sensor = FALSE -> X X X X X X X X X X (!Virtual_Light));
+LTLSPEC G (Virtual_TV1 = on -> time < 24);
+LTLSPEC G (Virtual_TV1 = off -> time >= 24);
+LTLSPEC G (Virtual_AC2 -> time = 7);
+LTLSPEC G (Virtual_TV1 = on -> time = 18);
+LTLSPEC G (Virtual_Fan1 = medium -> time = 18);
+LTLSPEC G (Virtual_TV1 = off -> time < 24);
+
+✅ Model successfully regenerated and saved to `./Ground-Truth-NuSMV/1-1-regen.smv`.
+
+✅ Violations reduced from 16 to 14.

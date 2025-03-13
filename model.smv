@@ -1,0 +1,67 @@
+MODULE main
+VAR
+    motionSensor: boolean;
+    virtualLight: boolean;
+    virtualAC1: boolean;
+    virtualFan1: boolean;
+    virtualLightKitchen: boolean;
+    virtualTV2: boolean;
+    virtualFan5: {off, low, medium, high};
+    movieMode: boolean;
+    virtualAC3: boolean;
+    doorsClosed: boolean;
+    noMotion: boolean;
+    virtualFridge1: boolean;
+    motionDiningRoom: boolean;
+    temp: 0..100;
+    virtualAC2: boolean;
+    virtualFan4: {off, low, medium, high};
+    motionLivingRoom: boolean;
+    virtualTV1: boolean;
+    muted: boolean;
+    time: 0..24;
+    motionDetected: boolean;
+
+ASSIGN
+    init(motionSensor) := FALSE;
+    init(virtualLight) := FALSE;
+    init(virtualAC1) := FALSE;
+    init(virtualFan1) := TRUE;
+    init(virtualLightKitchen) := TRUE;
+    init(virtualTV2) := FALSE;
+    init(virtualFan5) := off;
+    init(movieMode) := FALSE;
+    init(virtualAC3) := TRUE;
+    init(doorsClosed) := FALSE;
+    init(noMotion) := FALSE;
+    init(virtualFridge1) := FALSE;
+    init(motionDiningRoom) := FALSE;
+    init(temp) := 75;
+    init(virtualAC2) := FALSE;
+    init(virtualFan4) := off;
+    init(motionLivingRoom) := FALSE;
+    init(virtualTV1) := FALSE;
+    init(muted) := FALSE;
+    init(time) := 0;
+    init(motionDetected) := FALSE;
+
+TRANS
+    next(virtualLight) := motionSensor ? TRUE : (time = 6 & !motionDiningRoom ? FALSE : virtualLight);
+    next(virtualAC1) := motionSensor ? TRUE : virtualAC1;
+    next(virtualFan1) := (time = 6) ? FALSE : virtualFan1;
+    next(virtualLightKitchen) := (time = 6) ? FALSE : virtualLightKitchen;
+    next(virtualTV2) := movieMode ? TRUE : virtualTV2;
+    next(virtualFan5) := (movieMode ? low : (next(motionDetected) ? off : virtualFan5));
+    next(virtualAC3) := (doorsClosed & noMotion) ? FALSE : (temp < 70 ? FALSE : virtualAC3);
+    next(virtualFridge1) := motionDiningRoom ? TRUE : virtualFridge1;
+    next(virtualLight) := motionDiningRoom ? TRUE : virtualLight;
+    next(virtualAC2) := (motionSensor & temp > 80) ? TRUE : virtualAC2;
+    next(virtualFan4) := (motionSensor & temp > 80) ? high : (temp > 85 ? medium : virtualFan4);
+    next(virtualTV1) := (!motionLivingRoom & time > 5) ? TRUE : virtualTV1;
+    next(muted) := (!motionLivingRoom & time > 5) ? TRUE : muted;
+    next(virtualFan2) := (time = 22) ? FALSE : virtualFan2;
+
+LTLSPEC G !(temp > 80 & virtualAC2);
+LTLSPEC G !(temp < 70 & virtualAC3);
+LTLSPEC G !(virtualFan5 = low & F motionDetected);
+LTLSPEC G !(temp > 85 & virtualFan4 != medium);
