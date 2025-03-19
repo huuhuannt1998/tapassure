@@ -1,0 +1,28 @@
+```smv
+MODULE main
+VAR
+  device1 : boolean;
+  device2 : {off, low, medium, high};
+  -- Add other variables as needed
+
+ASSIGN
+  init(device1) := FALSE;
+  init(device2) := off;
+  -- Initialize other variables as needed
+
+  next(device1) := 
+    case
+      condition1 : TRUE;
+      condition2 : FALSE;
+      TRUE : device1;
+    esac;
+
+  next(device2) := 
+    case
+      -- Add conditions for device2 as needed
+      TRUE : device2;
+    esac;
+  -- Add next statements for other variables as needed
+
+LTLSPEC
+  G (!(device1 & device2 != off))
