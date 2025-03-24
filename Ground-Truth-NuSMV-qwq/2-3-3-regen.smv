@@ -1,0 +1,32 @@
+```smv
+MODULE main
+VAR
+    state : {start, running, paused, stopped};
+    device : {off, low, medium, high};
+
+ASSIGN
+    init(state) := start;
+    init(device) := off;
+
+TRANS
+    next(state) := 
+        case
+            state = start : running;
+            state = running & device != high : running;
+            state = running & device = high : paused;
+            state = paused : stopped;
+            TRUE : state;
+        esac;
+
+    next(device) := 
+        case
+            state = start : low;
+            state = running & device = low : medium;
+            state = running & device = medium : high;
+            state = paused : low;
+            state = stopped : off;
+            TRUE : device;
+        esac;
+
+LTLSPEC
+    G (!(state = running & device = off))

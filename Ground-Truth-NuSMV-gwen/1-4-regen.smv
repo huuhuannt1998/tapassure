@@ -1,0 +1,54 @@
+```smv
+MODULE main
+VAR
+device1 : boolean;
+device2 : {off, low, medium, high};
+device3 : {off, low, medium, high};
+device4 : {off, low, medium, high};
+
+ASSIGN
+init(device1) := FALSE;
+init(device2) := off;
+init(device3) := off;
+init(device4) := off;
+
+TRANS
+next(device1) := 
+    case
+    device1 & device2 = low & device3 = low & device4 = low : TRUE;
+    device1 & device2 = low & device3 = low & device4 = medium : TRUE;
+    device1 & device2 = low & device3 = medium & device4 = low : TRUE;
+    device1 & device2 = low & device3 = medium & device4 = medium : TRUE;
+    device1 & device2 = medium & device3 = low & device4 = low : TRUE;
+    device1 & device2 = medium & device3 = low & device4 = medium : TRUE;
+    device1 & device2 = medium & device3 = medium & device4 = low : TRUE;
+    device1 & device2 = medium & device3 = medium & device4 = medium : TRUE;
+    TRUE : device1;
+    esac;
+
+next(device2) := 
+    case
+    device2 = off & device1 = TRUE : low;
+    device2 = low & device1 = FALSE : medium;
+    device2 = medium & device1 = TRUE : high;
+    TRUE : device2;
+    esac;
+
+next(device3) := 
+    case
+    device3 = off & device1 = TRUE : low;
+    device3 = low & device1 = FALSE : medium;
+    device3 = medium & device1 = TRUE : high;
+    TRUE : device3;
+    esac;
+
+next(device4) := 
+    case
+    device4 = off & device1 = TRUE : low;
+    device4 = low & device1 = FALSE : medium;
+    device4 = medium & device1 = TRUE : high;
+    TRUE : device4;
+    esac;
+
+LTLSPEC
+G(!(device1 & (device2 != off | device3 != off | device4 != off)))

@@ -1,0 +1,73 @@
+MODULE main
+VAR
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    windows_open : boolean;
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_Fan3 : boolean;
+    Virtual_TV1 : boolean;
+    Virtual_Fridge1 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_Fan3) := FALSE;
+    init(Virtual_TV1) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+
+    -- Scenario rules (combined Virtual_Light conditions into one case)
+    next(Virtual_Light) := case
+        motion_sensor : TRUE;
+        no_motion : FALSE; -- Light turns off if no motion detected
+        (motion_sensor & away_mode) : TRUE; -- All lights on if motion detected while away
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_AC1) := case
+        no_motion : FALSE; -- AC1 turns off if no motion detected
+        windows_open : FALSE; -- AC1 must remain off if windows are open
+        TRUE : Virtual_AC1; -- Default case (maintains current state)
+    esac;
+
+
+    next(Virtual_TV1) := case
+        time = 18 : TRUE; -- TV1 turns on at sunset
+        TRUE : Virtual_TV1;
+    esac;
+
+    next(Virtual_Fan1) := case
+        time = 18 : medium; -- Fan1 set to medium at sunset
+        TRUE : Virtual_Fan1;
+    esac;
+
+    next(Virtual_Fridge1) := case
+        time = 7 : TRUE; -- Fridge1 turns on at 7 AM
+        TRUE : Virtual_Fridge1;
+    esac;
+
+    next(Virtual_AC2) := case
+        time = 7 : TRUE; -- AC2 turns on at 7 AM
+        temperature < 65 : TRUE; -- Ensure AC2 gets tested at temperatures below 65°F
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_Fan3) := case
+        temperature < 68 : TRUE; -- Ensure Fan3 gets tested at temperatures below 68°F
+        TRUE : Virtual_Fan3;
+    esac;
+
+LTLSPEC G (windows_open -> !Virtual_AC1); -- Virtual A/C 1 must not turn on when windows are open
+LTLSPEC G (no_motion -> X X X X X X X X X X (!Virtual_Light)); -- Light turns off if no motion for 10 minutes
+LTLSPEC G (temperature < 68 -> !Virtual_Fan3); -- Fan3 must not run when temperature below 68°F
+LTLSPEC G ((time >= 0 & time < 6) -> !Virtual_TV1); -- TV1 must not turn on between midnight and 6 AM
+LTLSPEC G (temperature < 65 -> !Virtual_AC2); -- AC2 must not run if temperature below 65°F

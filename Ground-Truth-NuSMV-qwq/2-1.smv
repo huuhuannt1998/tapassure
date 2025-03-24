@@ -1,0 +1,153 @@
+MODULE main
+VAR
+motion_sensor_bedroom : boolean;
+motion_sensor_dining_room : boolean;
+motion_sensor_living_room : boolean;
+time : 0..23;
+temperature : 60..100;
+movie_mode : boolean;
+doors_closed : boolean;
+no_motion : boolean;
+Virtual_Light_bedroom : boolean;
+Virtual_Light_kitchen : boolean;
+Virtual_Light_dining_room : boolean;
+Virtual_AC1 : boolean;
+Virtual_AC2 : boolean;
+Virtual_AC3 : boolean;
+Virtual_Fan1 : boolean;
+Virtual_Fan2 : boolean;
+Virtual_Fan4 : {off, low, medium, high};
+Virtual_Fan5 : {off, low, high};
+Virtual_TV1 : {off, on, muted};
+Virtual_TV2 : boolean;
+Virtual_Fridge1 : boolean;
+Virtual_Motion_Sensor : boolean;
+
+ASSIGN
+init(Virtual_Light_bedroom) := FALSE;
+init(Virtual_Light_kitchen) := FALSE;
+init(Virtual_Light_dining_room) := FALSE;
+init(Virtual_AC1) := FALSE;
+init(Virtual_AC2) := FALSE;
+init(Virtual_AC3) := FALSE;
+init(Virtual_Fan1) := FALSE;
+init(Virtual_Fan2) := FALSE;
+init(Virtual_Fan4) := off;
+init(Virtual_Fan5) := off;
+init(Virtual_TV1) := off;
+init(Virtual_TV2) := FALSE;
+init(Virtual_Fridge1) := FALSE;
+init(Virtual_Motion_Sensor) := FALSE;
+
+next(Virtual_Light_bedroom) := 
+    case 
+    motion_sensor_bedroom = TRUE : TRUE;
+    TRUE : Virtual_Light_bedroom;
+    esac;
+
+next(Virtual_AC1) := 
+    case 
+    TRUE : Virtual_AC1;
+    esac;
+
+next(Virtual_Light_kitchen) := 
+    case 
+    time = 6 : FALSE;
+    TRUE : Virtual_Light_kitchen;
+    esac;
+
+next(Virtual_Fan1) := 
+    case 
+    TRUE : Virtual_Fan1;
+    esac;
+
+next(Virtual_TV2) := 
+    case 
+    movie_mode = TRUE : TRUE;
+    TRUE : Virtual_TV2;
+    esac;
+
+next(Virtual_Fan5) := 
+    case 
+    movie_mode = TRUE : low;
+    TRUE : Virtual_Fan5;
+    esac;
+
+next(Virtual_AC2) := 
+    case 
+    temperature > 80 : TRUE;
+    TRUE : Virtual_AC2;
+    esac;
+
+next(Virtual_AC3) := 
+    case 
+    (doors_closed & no_motion) = TRUE : FALSE;
+    temperature < 70 : FALSE;
+    TRUE : Virtual_AC3;
+    esac;
+
+next(Virtual_Fan4) := 
+    case 
+    temperature > 85 : medium;
+    temperature > 80 : low;
+    TRUE : Virtual_Fan4;
+    esac;
+
+next(Virtual_TV1) := 
+    case 
+    no_motion = TRUE & time > 17 : muted;
+    TRUE : Virtual_TV1;
+    esac;
+
+next(Virtual_Fan2) := 
+    case 
+    time = 22 : FALSE;
+    TRUE : Virtual_Fan2;
+    esac;
+
+next(Virtual_Fridge1) := 
+    case 
+    motion_sensor_dining_room = TRUE : TRUE;
+    TRUE : Virtual_Fridge1;
+    esac;
+
+next(Virtual_Light_dining_room) := 
+    case 
+    TRUE : Virtual_Light_dining_room;
+    esac;
+
+next(Virtual_Motion_Sensor) := 
+    case 
+    motion_sensor_bedroom = TRUE | motion_sensor_dining_room = TRUE | motion_sensor_living_room = TRUE : TRUE;
+    TRUE : Virtual_Motion_Sensor;
+    esac;
+
+LTLSPEC G (temperature < 70 -> !Virtual_AC3);
+LTLSPEC G (Virtual_AC2 -> temperature <= 78);
+LTLSPEC G ((Virtual_Fan5 != off) -> F (motion_sensor_bedroom | motion_sensor_dining_room | motion_sensor_living_room));
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);  
+LTLSPEC G (time = 22 -> !Virtual_Fan2);  
+LTLSPEC G ((time > 17 & no_motion) -> Virtual_TV1 = muted);  
+LTLSPEC G (movie_mode -> Virtual_TV2 = TRUE);  
+LTLSPEC G (motion_sensor_dining_room -> Virtual_Fridge1 = TRUE);  
+LTLSPEC G (Virtual_Motion_Sensor -> Virtual_Light_dining_room = TRUE);  
+LTLSPEC G (Virtual_Motion_Sensor -> Virtual_Fridge1 = TRUE);  
+LTLSPEC G (temperature > 80 -> Virtual_AC2 = TRUE);  
+LTLSPEC G (motion_sensor_bedroom -> Virtual_AC1 = TRUE);  
+LTLSPEC G (doors_closed & no_motion -> Virtual_AC3 = FALSE);  
+LTLSPEC G (time = 6 -> !Virtual_Light_kitchen);  
+LTLSPEC G (time = 6 -> !Virtual_Fan1);  
+LTLSPEC G (movie_mode -> Virtual_Fan5 = low);  
+LTLSPEC G ((Virtual_Fan4 != off) -> temperature > 80);  
+LTLSPEC G ((Virtual_TV1 = muted) -> no_motion);  
+LTLSPEC G ((Virtual_TV1 = muted) -> time > 17);  
+LTLSPEC G ((Virtual_TV2) -> movie_mode);  
+LTLSPEC G ((Virtual_Fridge1) -> motion_sensor_dining_room);  
+LTLSPEC G ((Virtual_Light_dining_room) -> motion_sensor_dining_room);  
+LTLSPEC G ((Virtual_AC1) -> motion_sensor_bedroom);  
+LTLSPEC G ((Virtual_AC3) -> (doors_closed & no_motion));  
+LTLSPEC G ((Virtual_Light_kitchen) -> time != 6);  
+LTLSPEC G ((Virtual_Fan1) -> time != 6);  
+LTLSPEC G ((Virtual_Fan5 != off) -> movie_mode);  
+LTLSPEC G ((Virtual_Fan4 != off) -> temperature > 80);  
+LTLSPEC G ((Virtual_TV1 != off) -> (no_motion & time > 17));

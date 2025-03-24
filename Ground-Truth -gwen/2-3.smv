@@ -1,0 +1,98 @@
+MODULE main
+VAR
+    virtual_switch : boolean;
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    room_occupied : boolean;
+    motion_living_room : boolean;
+    activity_detected : boolean;
+    fan5_active_time : 0..60;  -- Tracks Fan 5 activity duration
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan2 : boolean;
+    Virtual_Fan3 : boolean;
+    Virtual_Fan4 : {off, low, medium, high};
+    Virtual_Fan5 : boolean;
+    Virtual_TV3 : boolean;
+
+ASSIGN
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan3) := FALSE;
+    init(Virtual_Fan4) := off;
+    init(Virtual_Fan5) := FALSE;
+    init(Virtual_TV3) := FALSE;
+    init(fan5_active_time) := 0;
+
+    -- Device activation rules
+    next(Virtual_Light) := case
+        virtual_switch : TRUE; -- Light turns on when switch is activated
+        no_motion : FALSE; -- Light turns off if no motion detected for 10 minutes
+        TRUE : Virtual_Light;
+    esac;
+
+    next(Virtual_Fan5) := case
+        virtual_switch : TRUE; -- Fan 5 turns on when switch is activated
+        (fan5_active_time >= 60) : FALSE; -- Fan 5 must turn off after 1 hour of inactivity
+        TRUE : Virtual_Fan5;
+    esac;
+
+    next(Virtual_AC3) := case
+        temperature < 70 : FALSE; -- AC3 must deactivate if temperature drops below 70°F
+        !room_occupied : FALSE; -- AC3 turns off when leaving home
+        TRUE : Virtual_AC3;
+    esac;
+
+    next(Virtual_Fan3) := case
+        !room_occupied : FALSE; -- Fan 3 turns off when leaving home
+        temperature > 75 : TRUE; -- Fan 3 turns on when temperature exceeds 75°F
+        TRUE : Virtual_Fan3;
+    esac;
+
+    next(Virtual_AC1) := case
+        (motion_sensor & temperature > 75) : TRUE; -- AC1 turns on if motion detects high temperature
+        TRUE : Virtual_AC1;
+    esac;
+
+    next(Virtual_Fan2) := case
+        (motion_sensor & temperature > 75) : TRUE; -- Fan2 turns on if motion detects high temperature
+        (motion_living_room) : TRUE; -- Fan2 turns on when motion detected in living room
+        TRUE : Virtual_Fan2;
+    esac;
+
+    next(Virtual_AC2) := case
+        (motion_living_room & temperature >= 65) : TRUE; -- AC2 turns on if motion detected and temp is above 65°F
+        temperature > 78 : FALSE; -- AC2 must not exceed 78°F
+        TRUE : Virtual_AC2;
+    esac;
+
+    next(Virtual_TV3) := case
+        (no_motion) : FALSE; -- TV3 turns off when no one is detected for 15 minutes
+        TRUE : Virtual_TV3;
+    esac;
+
+    next(Virtual_Fan4) := case
+        temperature > 85 : medium; -- Fan4 must operate at medium speed if temperature exceeds 85°F
+        TRUE : Virtual_Fan4;
+    esac;
+
+    -- Fan 5 active timer (capped at 60)
+    next(fan5_active_time) := case
+        (Virtual_Fan5 & fan5_active_time < 60) : fan5_active_time + 1;
+        !Virtual_Fan5 : 0;
+        TRUE : fan5_active_time;
+    esac;
+
+LTLSPEC G (temperature < 70 -> !Virtual_AC3); -- Virtual A/C 3 must deactivate if temperature drops below 70°F
+LTLSPEC G (Virtual_AC2 -> temperature <= 78); -- Virtual A/C 2 must not exceed 78°F
+LTLSPEC G (Virtual_Fan5 -> F (fan5_active_time >= 60 -> !Virtual_Fan5)); -- Virtual Fan 5 must turn off after 1 hour without activity detection
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium); -- Virtual Fan 4 must operate at medium speed if temperature exceeds 85°F
