@@ -95,7 +95,7 @@ def get_smartthings_devices():
 # OPENAI_API_KEY = "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"  # Load API Key from .env
 
 # vLLM API Configuration
-# VLLM_API_URL = "http://localhost:5000/api/chat/completions"
+VLLM_API_URL = "http://localhost:5000/api/chat/completions"
 
 # Function to invoke_llm vLLM API
 def invoke_llm(prompt):
@@ -484,11 +484,17 @@ def refine_nusmv_model(nusmv_model, error_log):
 
     try:
         response = invoke_llm(prompt)
+
+        if response is None:
+            print("❌ No valid response returned during refinement.")
+            return nusmv_model  # Return original if refinement fails
+
         corrected_model = response.strip()
         return corrected_model
+
     except Exception as e:
         print(f"❌ Error refining NuSMV model: {e}")
-        return nusmv_model  # Return the original model if refinement fails
+        return nusmv_model
 
 
 def is_valid_nusmv_model(model_content):
@@ -700,10 +706,15 @@ def generate_nusmv_model(scenarios, safety_properties):
     prompt = nusmv_generation_prompt.format(
         scenarios="\n- ".join(scenarios),
         safety_properties="\n- ".join(safety_properties))
-    response = invoke_llm(prompt)
-    cleaned_model = clean_nusmv_model(response.strip())
     
+    response = invoke_llm(prompt)
+    if response is None:
+        print("❌ LLM failed to generate valid NuSMV model.")
+        return ""
+
+    cleaned_model = clean_nusmv_model(response.strip())
     return cleaned_model
+
 
 def generate_valid_nusmv_model(scenarios, safety_properties, output_file="generated_model.smv"):
     iteration = 0
@@ -1053,7 +1064,7 @@ while True:
     #     exit()
 
     # Step 2: Collect and validate scenarios
-    validated_scenarios = scenarios1
+    validated_scenarios = scenarios3
 
     # Step 3: Collect safety properties
     validated_safety_properties = safety_properties2
@@ -1085,7 +1096,7 @@ while True:
     # else:
     #     print(f"\n Failed to generate a valid NuSMV model after {iteration_count} iterations.")
     #     print("Error details:", final_nusmv_model)
-    valid_nusmv_model = generate_valid_nusmv_model(validated_scenarios, validated_safety_properties, model_file)
+    valid_nusmv_model = generate_valid_nusmv_model(scenarios1, safety_properties1, model_file)
 
     # if valid_nusmv_model:
     #     print("\n✅ Process 1 completed successfully. Ready for Process 2!")

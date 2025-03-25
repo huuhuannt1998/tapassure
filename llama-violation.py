@@ -1186,8 +1186,8 @@ while True:
     print("\nStarting iterative violation minimization...")
     # final_scenarios = minimize_violations_with_llm(model_file, validated_scenarios, validated_safety_properties)
     # Input and output NuSMV files
-    input_model = "./Ground-Truth-NuSMV/3-4.smv"
-    output_model = "./Ground-Truth-NuSMV/3-4-7-regen.smv"
+    input_model = "./Ground-Truth-NuSMV-llama-2/3-4.smv"
+    output_model = "./Ground-Truth-NuSMV-llama-2/3-4-8-regen.smv"
 
     # Run the iterative violation minimization
     minimize_violations_with_llm(input_model, output_model, scenarios3, safety_properties4)

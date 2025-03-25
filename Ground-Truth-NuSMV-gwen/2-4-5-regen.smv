@@ -1,26 +1,171 @@
-```smv
 MODULE main
 VAR
-  device1 : boolean;
-  device2 : {off, low, medium, high};
+  motion_sensor : boolean;
+  time : 0..24;
+  temperature : 60..100;
+  away_mode : boolean;
+  no_one_home : boolean;
+  no_motion : boolean;
+  room_temperature : 60..100;
+  living_room_motion : boolean;
+  virtual_switch : boolean;
+
+  Virtual_Light : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_AC2 : boolean;
+  Virtual_AC3 : {off, medium, high}; -- Changed from boolean to enum
+  Virtual_Fan1 : boolean;
+  Virtual_Fan2 : boolean;
+  Virtual_Fan3 : {off, low, medium, high};
+  Virtual_Fan4 : {off, low, high};
+  Virtual_Fan5 : {off, low, high};
+  Virtual_TV1 : {off, on, muted};
+  Virtual_TV2 : boolean;
+  Virtual_TV3 : {off, on, muted};
+
+  no_motion_for_10_min : 0..10;
+  no_activity_for_15_min : 0..15;
 
 ASSIGN
-  init(device1) := FALSE;
-  init(device2) := off;
+  -- Initial states
+  init(Virtual_Light) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_AC2) := FALSE;
+  init(Virtual_AC3) := off;
+  init(Virtual_Fan1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(Virtual_Fan3) := off;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan5) := off;
+  init(Virtual_TV1) := off;
+  init(Virtual_TV2) := FALSE;
+  init(Virtual_TV3) := off;
+  init(no_motion_for_10_min) := 0;
+  init(no_activity_for_15_min) := 0;
 
-  next(device1) := 
+  -- Derived motion flag
+  next(no_motion) := 
     case
-      condition1 : TRUE;
-      condition2 : FALSE;
-      TRUE : device1;
+      motion_sensor = FALSE : TRUE;
+      TRUE : FALSE;
     esac;
 
-  next(device2) := 
+  -- Counter for 10 minutes of no motion
+  next(no_motion_for_10_min) := 
     case
-      device1 : high;
-      device2 = off : low;
-      TRUE : device2;
+      no_motion = TRUE & no_motion_for_10_min < 10 : no_motion_for_10_min + 1;
+      motion_sensor = TRUE : 0;
+      TRUE : no_motion_for_10_min;
     esac;
 
-LTLSPEC
-  G (!(device1 & device2 != off))
+  -- Counter for 15 minutes of no activity
+  next(no_activity_for_15_min) := 
+    case
+      no_one_home = TRUE & no_activity_for_15_min < 15 : no_activity_for_15_min + 1;
+      no_one_home = FALSE : 0;
+      TRUE : no_activity_for_15_min;
+    esac;
+
+  -- Living room motion remains unchanged (assume external input)
+  next(living_room_motion) := living_room_motion;
+
+  -- Simulate room temp dynamics (example: oscillation)
+  next(room_temperature) := 
+    case
+      room_temperature < 100 : room_temperature + 1;
+      TRUE : 60;
+    esac;
+
+  -- TV3 turns off when no one home
+  next(Virtual_TV3) := 
+    case
+      no_one_home = TRUE : off;
+      no_activity_for_15_min >= 15 : muted;
+      TRUE : Virtual_TV3;
+    esac;
+
+  -- AC1 off if no one is home
+  next(Virtual_AC1) := 
+    case
+      no_one_home = TRUE : FALSE;
+      room_temperature > 75 : TRUE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  -- Fan3 high if room temp > 75
+  next(Virtual_Fan3) := 
+    case
+      room_temperature > 75 : high;
+      away_mode = TRUE : off;
+      TRUE : Virtual_Fan3;
+    esac;
+
+  -- Light logic: on with motion, off after 10 min of no motion, off if no one is home
+  next(Virtual_Light) := 
+    case
+      away_mode = TRUE : FALSE;
+      motion_sensor = TRUE : TRUE;
+      no_one_home = TRUE : FALSE;
+      no_motion_for_10_min >= 10 : FALSE;
+      TRUE : Virtual_Light;
+    esac;
+
+  -- Fan1 off if AC2 is running
+  next(Virtual_Fan1) := 
+    case
+      Virtual_AC2 = TRUE : FALSE;
+      TRUE : Virtual_Fan1;
+    esac;
+
+  -- Fan4 high if virtual switch on
+  next(Virtual_Fan4) := 
+    case
+      virtual_switch = TRUE : high;
+      TRUE : Virtual_Fan4;
+    esac;
+
+  -- away_mode logic
+  next(away_mode) := 
+    case
+      virtual_switch = FALSE : TRUE;
+      TRUE : away_mode;
+    esac;
+
+  -- AC3 logic: off if away, else set to medium if hot
+  next(Virtual_AC3) := 
+    case
+      away_mode = TRUE : off;
+      room_temperature > 75 : medium;
+      TRUE : Virtual_AC3;
+    esac;
+
+  -- Fan2 high if motion in living room
+  next(Virtual_Fan2) := 
+    case
+      living_room_motion = TRUE : TRUE;
+      TRUE : Virtual_Fan2;
+    esac;
+
+  -- AC2 on with living room motion
+  next(Virtual_AC2) := 
+    case
+      living_room_motion = TRUE : TRUE;
+      TRUE : Virtual_AC2;
+    esac;
+
+  -- Fan5 low if virtual switch on
+  next(Virtual_Fan5) := 
+    case
+      virtual_switch = TRUE : low;
+      TRUE : Virtual_Fan5;
+    esac;
+
+LTLSPEC G (away_mode -> (Virtual_AC3 = off & Virtual_Fan3 = off & !Virtual_Light))
+
+LTLSPEC G (no_motion_for_10_min >= 10 -> !Virtual_Light)
+
+LTLSPEC G (no_one_home -> !Virtual_AC1)
+
+LTLSPEC G (motion_sensor = TRUE -> Virtual_Light = TRUE)
+
+LTLSPEC G (Virtual_AC2 = TRUE -> Virtual_Fan1 = FALSE)

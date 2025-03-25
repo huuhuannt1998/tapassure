@@ -1,142 +1,110 @@
 MODULE main
 VAR
     motion_sensor : boolean;
-    time : 0..24;
-    temperature : 60..100;
-    movie_mode : boolean;
-    doors_closed : boolean;
     no_motion : boolean;
-    living_room_motion : boolean;
-    dining_room_motion : boolean;
-    Virtual_LightBedroom : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    activity_detected : boolean;
+    fan5_active_time : 0..60;  -- Tracks Fan 5 duration
+    
+    Virtual_Light : boolean;
     Virtual_AC1 : boolean;
     Virtual_AC2 : boolean;
     Virtual_AC3 : boolean;
-    Virtual_Fan1 : boolean;
-    Virtual_Fan2 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
     Virtual_Fan4 : {off, low, medium, high};
-    Virtual_Fan5 : {off, low, high};
-    Virtual_TV1 : {off, on, muted};
-    Virtual_TV2 : boolean;
+    Virtual_Fan5 : boolean;
+    Virtual_TV1 : boolean;
     Virtual_Fridge1 : boolean;
-    Virtual_A_C_1 : boolean;
 
 ASSIGN
-    init(Virtual_LightBedroom) := FALSE;
+    -- Initial states
+    init(Virtual_Light) := FALSE;
     init(Virtual_AC1) := FALSE;
     init(Virtual_AC2) := FALSE;
     init(Virtual_AC3) := FALSE;
-    init(Virtual_Fan1) := FALSE;
-    init(Virtual_Fan2) := FALSE;
+    init(Virtual_Fan1) := off;
     init(Virtual_Fan4) := off;
-    init(Virtual_Fan5) := off;
-    init(Virtual_TV1) := off;
-    init(Virtual_TV2) := FALSE;
+    init(Virtual_Fan5) := FALSE;
+    init(Virtual_TV1) := FALSE;
     init(Virtual_Fridge1) := FALSE;
-    init(Virtual_A_C_1) := FALSE;
+    init(fan5_active_time) := 0;
 
-    next(Virtual_LightBedroom) := 
-        case 
-            motion_sensor = TRUE : TRUE;
-            time = 6 & motion_sensor = FALSE : FALSE;
-            TRUE : Virtual_LightBedroom;
+    -- Merged Virtual_Light conditions
+    next(Virtual_Light) := 
+        case
+            (motion_sensor & !away_mode) : TRUE;
+            (motion_sensor & away_mode) : TRUE;
+            no_motion : FALSE;
+            TRUE : Virtual_Light;
         esac;
 
     next(Virtual_AC1) := 
-        case 
-            temperature > 80 : TRUE;
-            temperature <= 78 : FALSE;
-            no_motion = TRUE & doors_closed = TRUE : FALSE;
+        case
+            no_motion : FALSE;
+            (temperature > 78) : FALSE; -- Ensure Virtual A/C 1 does not exceed 78°F
+            (temperature < 70) : FALSE; -- Ensure Virtual A/C 1 deactivates if the room is below 70°F
             TRUE : Virtual_AC1;
         esac;
 
+    next(Virtual_TV1) := 
+        case
+            (time = 18) : TRUE;
+            TRUE : Virtual_TV1;
+        esac;
+
+    next(Virtual_Fan1) := 
+        case
+            (time = 18) : medium;
+            TRUE : Virtual_Fan1;
+        esac;
+
+    next(Virtual_Fridge1) := 
+        case
+            (time = 7) : TRUE;
+            TRUE : Virtual_Fridge1;
+        esac;
+
     next(Virtual_AC2) := 
-        case 
-            temperature > 80 : TRUE;
-            temperature <= 78 : FALSE;
-            movie_mode = TRUE & temperature <= 78 : FALSE;
+        case
+            (time = 7) : TRUE;
+            (temperature > 78) : FALSE; -- Ensure Virtual A/C 2 does not exceed 78°F
+            (temperature < 70) : FALSE; -- Ensure Virtual A/C 2 deactivates if the room is below 70°F
             TRUE : Virtual_AC2;
         esac;
 
     next(Virtual_AC3) := 
-        case 
-            temperature >= 70 & no_motion = FALSE & doors_closed = FALSE : TRUE;
-            no_motion = TRUE & doors_closed = TRUE : FALSE;
-            temperature < 70 : FALSE;
+        case
+            (temperature < 70) : FALSE; -- Virtual A/C 3 must deactivate if temperature drops below 70°F
+            (temperature > 78) : FALSE; -- Ensure Virtual A/C 3 does not exceed 78°F
             TRUE : Virtual_AC3;
         esac;
 
-    next(Virtual_Fan1) := 
-        case 
-            time = 22 : FALSE;
-            motion_sensor = TRUE : TRUE;
-            TRUE : Virtual_Fan1;
-        esac;
-
-    next(Virtual_Fan2) := 
-        case 
-            time = 22 : FALSE;
-            motion_sensor = TRUE : TRUE;
-            TRUE : Virtual_Fan2;
-        esac;
-
     next(Virtual_Fan4) := 
-        case 
-            temperature > 85 : medium;
-            temperature > 80 & temperature <= 85 : high;
-            TRUE : off;
+        case
+            (temperature > 85) : medium; -- Virtual Fan 4 must operate at medium speed if temperature exceeds 85°F
+            TRUE : Virtual_Fan4;
         esac;
 
     next(Virtual_Fan5) := 
-        case 
-            movie_mode = TRUE : low;
-            (Virtual_Fan5 != off) & (!motion_sensor & !living_room_motion & !dining_room_motion) : off;
-            Virtual_Fan5 = off & (motion_sensor = TRUE | living_room_motion = TRUE | dining_room_motion = TRUE) : low;
-            Virtual_Fan5 != off & (motion_sensor = TRUE | living_room_motion = TRUE | dining_room_motion = TRUE) & Virtual_Fan5 != high: high;
+        case
+            activity_detected : TRUE; -- Virtual Fan 5 turns on when activity is detected
+            (!activity_detected & fan5_active_time >= 60) : FALSE; -- Ensure Virtual Fan 5 turns off if no activity is detected for 60 minutes
+            (!activity_detected) : FALSE; -- Ensure Virtual Fan 5 turns off if no activity is detected
             TRUE : Virtual_Fan5;
         esac;
 
-    next(Virtual_TV1) := 
-        case 
-            living_room_motion = FALSE & time >= 5 & Virtual_TV1 = on : muted;
-            Virtual_TV1 = muted & (living_room_motion = TRUE | dining_room_motion = TRUE) : on;
-            (dining_room_motion = TRUE | living_room_motion = TRUE) & Virtual_TV1 = off: on;
-            no_motion = TRUE & Virtual_TV1 = on: muted;
-            TRUE : Virtual_TV1;
+    -- Fan 5 active timer (capped at 60)
+    next(fan5_active_time) := 
+        case
+            (Virtual_Fan5 & fan5_active_time < 60) : fan5_active_time + 1;
+            (!Virtual_Fan5) : 0;
+            TRUE : fan5_active_time;
         esac;
 
-    next(Virtual_TV2) := 
-        case 
-            movie_mode = TRUE : TRUE;
-            movie_mode = FALSE : FALSE;
-            TRUE : Virtual_TV2;
-        esac;
-
-    next(Virtual_Fridge1) := 
-        case 
-            dining_room_motion = TRUE : TRUE;
-            dining_room_motion = FALSE & time < 7 : FALSE;
-            dining_room_motion = FALSE & time >= 7 : TRUE;
-            TRUE : Virtual_Fridge1;
-        esac;
-
-    next(Virtual_A_C_1) := 
-        case 
-            Virtual_A_C_1 = FALSE & motion_sensor = TRUE : TRUE;
-            Virtual_A_C_1 = TRUE & motion_sensor = FALSE : FALSE;
-            TRUE : Virtual_A_C_1;
-        esac;
-
-LTLSPEC G (temperature < 70 -> !Virtual_AC3);
-LTLSPEC G (Virtual_AC2 -> temperature > 78);
-LTLSPEC G ((Virtual_Fan5 != off) -> F motion_sensor);
-LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);
-LTLSPEC G (Virtual_Fan5 != off -> F (Virtual_Fan5 = off));
-LTLSPEC G (time = 22 -> !Virtual_Fan2);
-LTLSPEC G (no_motion = TRUE & doors_closed = TRUE -> !Virtual_AC3);
-LTLSPEC G (temperature > 80 -> Virtual_AC2);
-LTLSPEC G (Virtual_TV1 = on & no_motion = TRUE -> Virtual_TV1 = muted);
-LTLSPEC G (dining_room_motion = TRUE -> Virtual_Fridge1);
-LTLSPEC G (motion_sensor = TRUE -> Virtual_LightBedroom);
-LTLSPEC G (movie_mode = TRUE -> Virtual_TV2);
-LTLSPEC G (Virtual_TV1 = muted & living_room_motion = TRUE -> Virtual_TV1 = on);
+LTLSPEC G (temperature < 70 -> !Virtual_AC3); -- Virtual A/C 3 must deactivate if temperature drops below 70°F
+LTLSPEC G (temperature > 78 -> !Virtual_AC2); -- Virtual A/C 2 must not exceed 78°F
+LTLSPEC G (Virtual_AC2 -> temperature <= 78); -- Virtual A/C 2 must not exceed 78°F
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium); -- Virtual Fan 4 must operate at medium speed if temperature exceeds 85°F
+LTLSPEC G (Virtual_Fan5 -> F (fan5_active_time >= 60 -> !Virtual_Fan5)); -- Virtual Fan 5 must not remain on for more than 1 hour without activity detection

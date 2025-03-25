@@ -1,28 +1,177 @@
-```smv
 MODULE main
 VAR
-    device1 : boolean;
-    device2 : {off, low, medium, high};
+motion_sensor_bedroom : boolean;
+motion_sensor_dining : boolean;
+motion_sensor_living : boolean;
+motion_sensor_kitchen : boolean;
+sunrise : boolean;
+movie_mode : boolean;
+all_doors_closed : boolean;
+windows_open : boolean;
+temperature : 60..100;
+time : 0..24;
+no_motion_bedroom : boolean;
+no_motion_living : boolean;
+no_motion_for_10_min : boolean;
+
+Virtual_Light : boolean;
+Virtual_Light_Kitchen : boolean;
+Virtual_AC1 : boolean;
+Virtual_AC2 : boolean;
+Virtual_AC3 : boolean;
+Virtual_Fan1 : boolean;
+Virtual_Fan2 : boolean;
+Virtual_Fan3 : {off, low, medium, high};
+Virtual_Fan4 : {off, low, medium, high};
+Virtual_Fan5 : {off, low, high};
+Virtual_TV1 : {off, on, muted};
+Virtual_TV2 : boolean;
+Virtual_Fridge1 : boolean;
 
 ASSIGN
-    init(device1) := FALSE;
-    init(device2) := off;
+-- Initialize variables
+init(Virtual_Light) := FALSE;
+init(Virtual_Light_Kitchen) := FALSE;
+init(Virtual_AC1) := FALSE;
+init(Virtual_AC2) := FALSE;
+init(Virtual_AC3) := FALSE;
+init(Virtual_Fan1) := FALSE;
+init(Virtual_Fan2) := FALSE;
+init(Virtual_Fan3) := off;
+init(Virtual_Fan4) := off;
+init(Virtual_Fan5) := off;
+init(Virtual_TV1) := off;
+init(Virtual_TV2) := FALSE;
+init(Virtual_Fridge1) := FALSE;
+init(sunrise) := FALSE;
+init(movie_mode) := FALSE;
+init(all_doors_closed) := FALSE;
+init(windows_open) := FALSE;
+init(temperature) := 70;
+init(time) := 0;
+init(no_motion_bedroom) := FALSE;
+init(no_motion_living) := FALSE;
+init(no_motion_for_10_min) := FALSE;
 
-TRANS
-    next(device1) := 
-        case
-        device2 = off : TRUE;
-        device2 = low : FALSE;
-        TRUE : device1;
-        esac;
+-- Bedroom scenarios
+next(Virtual_Light) := 
+    case
+    motion_sensor_bedroom = TRUE : TRUE;
+    no_motion_for_10_min = TRUE : FALSE;
+    TRUE : Virtual_Light;
+    esac;
 
-    next(device2) := 
-        case
-        device1 : high;
-        !device1 & device2 = off : low;
-        !device1 & device2 = low : medium;
-        TRUE : device2;
-        esac;
+-- Kitchen scenarios
+next(Virtual_Light_Kitchen) := 
+    case
+    sunrise = TRUE : FALSE;
+    motion_sensor_kitchen = TRUE : TRUE;
+    TRUE : Virtual_Light_Kitchen;
+    esac;
 
-LTLSPEC
-    G(!(device1 & device2 != off))
+next(Virtual_Fan1) := 
+    case
+    TRUE : Virtual_Fan1;
+    esac;
+
+-- Movie mode scenarios
+next(Virtual_TV2) := 
+    case
+    movie_mode = TRUE : TRUE;
+    TRUE : Virtual_TV2;
+    esac;
+
+next(Virtual_Fan5) := 
+    case
+    movie_mode = TRUE : low;
+    TRUE : Virtual_Fan5;
+    esac;
+
+-- A/C 3 scenarios
+next(Virtual_AC3) := 
+    case
+    all_doors_closed = TRUE & motion_sensor_bedroom = FALSE & motion_sensor_living = FALSE & motion_sensor_dining = FALSE & motion_sensor_kitchen = FALSE : FALSE;
+    TRUE : Virtual_AC3;
+    esac;
+
+-- Dining room scenarios
+next(Virtual_Fridge1) := 
+    case
+    motion_sensor_dining = TRUE : TRUE;
+    TRUE : Virtual_Fridge1;
+    esac;
+
+-- Temperature scenarios
+next(Virtual_AC2) := 
+    case
+    temperature >= 80 & motion_sensor_bedroom = TRUE : TRUE;
+    temperature < 65 : FALSE;
+    TRUE : Virtual_AC2;
+    esac;
+
+next(Virtual_Fan4) := 
+    case
+    temperature >= 80 & motion_sensor_bedroom = TRUE : high;
+    TRUE : Virtual_Fan4;
+    esac;
+
+next(Virtual_TV1) := 
+    case
+    time >= 0 & time < 6 : off;
+    no_motion_living = TRUE & time >= 5 : on;
+    no_motion_living = TRUE & time < 5 : muted;
+    TRUE : Virtual_TV1;
+    esac;
+
+-- Fan 2 scenarios
+next(Virtual_Fan2) := 
+    case
+    time = 22 : FALSE;
+    TRUE : Virtual_Fan2;
+    esac;
+
+-- Update time (increment every step)
+next(time) := 
+    case
+    time = 24 : 0;
+    TRUE : time + 1;
+    esac;
+
+-- Update no_motion_for_10_min (simulate no motion for 10 minutes)
+next(no_motion_for_10_min) := 
+    case
+    motion_sensor_bedroom = FALSE & motion_sensor_living = FALSE & motion_sensor_dining = FALSE & motion_sensor_kitchen = FALSE : no_motion_for_10_min;
+    TRUE : FALSE;
+    esac;
+
+-- Corrected Fan3 condition
+next(Virtual_Fan3) := 
+    case
+    temperature < 68 : off;
+    TRUE : Virtual_Fan3;
+    esac;
+
+next(Virtual_AC1) := 
+    case
+    windows_open = TRUE : FALSE;
+    TRUE : Virtual_AC1;
+    esac;
+
+next(no_motion_living) := 
+    case
+    motion_sensor_living = TRUE : FALSE;
+    TRUE : no_motion_living;
+    esac;
+
+next(no_motion_bedroom) := 
+    case
+    motion_sensor_bedroom = TRUE : FALSE;
+    TRUE : no_motion_bedroom;
+    esac;
+
+-- Ensure no duplicate assignments for no_motion_for_10_min
+LTLSPEC G (windows_open -> !Virtual_AC1); -- Virtual A/C 1 must not turn on when windows are open
+LTLSPEC G (no_motion_for_10_min -> X X X X X X X X X X (!Virtual_Light)); -- Light turns off if no motion for 10 minutes
+LTLSPEC G (temperature < 68 -> Virtual_Fan3 = off); -- Fan3 must not run when temperature below 68°F
+LTLSPEC G ((time >= 0 & time < 6) -> (Virtual_TV1 = off)); -- TV1 must not turn on between midnight and 6 AM
+LTLSPEC G (temperature < 65 -> !Virtual_AC2); -- AC2 must not run if temperature below 65°F

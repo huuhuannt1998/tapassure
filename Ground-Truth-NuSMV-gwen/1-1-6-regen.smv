@@ -1,28 +1,95 @@
-```smv
 MODULE main
 VAR
-device1 : boolean;
-device2 : {off, low, medium, high};
+  motion_sensor : boolean;
+  time : 0..24;
+  temperature : 60..100;
+  away_mode : boolean;
+  windows_open : boolean;
+  no_motion_for_10_min : boolean;
+
+  Virtual_Light : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_AC2 : boolean;
+  Virtual_Fan3 : {off, low, medium, high};
+  Virtual_TV1 : {off, on, muted};
 
 ASSIGN
-init(device1) := FALSE;
-init(device2) := off;
+  -- Initial states
+  init(Virtual_Light) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_AC2) := FALSE;
+  init(Virtual_Fan3) := off;
+  init(Virtual_TV1) := off;
+  init(no_motion_for_10_min) := FALSE;
 
-TRANS
-next(device1) := 
+  -- no_motion_for_10_min logic (simplified: just flag it when no motion)
+  next(no_motion_for_10_min) := 
     case
-    device2 = off : TRUE;
-    device2 = low : FALSE;
-    TRUE : device1;
+      motion_sensor = FALSE & no_motion_for_10_min = FALSE : (time < 24);
+      motion_sensor = TRUE : FALSE;
+      TRUE : no_motion_for_10_min;
     esac;
 
-next(device2) := 
+  -- Time update
+  next(time) := 
     case
-    device1 : high;
-    !device1 & device2 = low : medium;
-    !device1 & device2 = medium : low;
-    TRUE : device2;
+      time = 24 : 0;
+      TRUE : time + 1;
     esac;
 
-LTLSPEC
-G(!(device1 & device2 != off))
+  -- Scenario 1 & 4: Virtual_Light behavior combined
+  next(Virtual_Light) := 
+    case
+      motion_sensor = TRUE : TRUE;
+      no_motion_for_10_min = TRUE : FALSE;
+      TRUE : Virtual_Light;
+    esac;
+
+  -- Scenario 2: Turn off Virtual_AC1 when no motion or windows are open or temperature is below 65
+  next(Virtual_AC1) := 
+    case
+      windows_open = TRUE : FALSE;
+      temperature < 65 : FALSE;
+      motion_sensor = FALSE : FALSE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  -- Scenario 3: At sunset (time = 18), turn on TV1 and Fan3 to medium; turn off TV1 between 0 and 6
+  next(Virtual_TV1) := 
+    case
+      time = 18 : on;
+      time >= 0 & time < 6 : off;
+      TRUE : Virtual_TV1;
+    esac;
+
+  next(Virtual_Fan3) := 
+    case
+      time = 18 & temperature >= 68 : medium;
+      temperature < 68 : off;
+      TRUE : Virtual_Fan3;
+    esac;
+
+  -- Scenario 5: At 7 AM, turn on AC2 if temperature >= 65
+  next(Virtual_AC2) := 
+    case
+      time = 7 & temperature >= 65 : TRUE;
+      temperature < 65 : FALSE;
+      TRUE : Virtual_AC2;
+    esac;
+
+-- Properties
+
+-- A/C 1 must not be on if windows are open or temperature is below 65
+LTLSPEC G (windows_open | temperature < 65 -> !Virtual_AC1);
+
+-- Virtual_Light must turn off if no motion for 10 minutes
+LTLSPEC G (no_motion_for_10_min -> X X X X X X X X X X (!Virtual_Light));
+
+-- Virtual_Fan3 must be off when temperature is below 68
+LTLSPEC G (temperature < 68 -> (Virtual_Fan3 = off));
+
+-- Virtual_TV1 must not be on between 0 and 6
+LTLSPEC G ((time >= 0 & time < 6) -> (Virtual_TV1 = off));
+
+-- Virtual_AC2 must not be on if temperature is below 65
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);

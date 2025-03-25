@@ -1,0 +1,160 @@
+MODULE main
+VAR
+  motion_sensor : boolean;
+  time : 0..23;
+  temperature : 60..100;
+  movie_mode : boolean;
+  doors_closed : boolean;
+  no_motion : boolean;
+  windows_open : boolean;
+  away_mode : boolean;
+  no_motion_for_10_min : boolean;
+
+  Virtual_Light : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_AC2 : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan1 : boolean;
+  Virtual_Fan2 : boolean;
+  Virtual_Fan3 : {off, low, medium, high};
+  Virtual_Fan4 : {off, low, medium, high};
+  Virtual_Fan5 : {off, low, high};
+  Virtual_TV1 : {off, on, muted};
+  Virtual_TV2 : boolean;
+  Virtual_Fridge1 : boolean;
+
+ASSIGN
+  -- Initial States
+  init(Virtual_Light) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_AC2) := FALSE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(Virtual_Fan3) := off;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan5) := off;
+  init(Virtual_TV1) := off;
+  init(Virtual_TV2) := FALSE;
+  init(Virtual_Fridge1) := FALSE;
+  init(motion_sensor) := FALSE;
+  init(time) := 0;
+  init(temperature) := 60;
+  init(movie_mode) := FALSE;
+  init(doors_closed) := FALSE;
+  init(no_motion) := TRUE;
+  init(windows_open) := FALSE;
+  init(away_mode) := FALSE;
+  init(no_motion_for_10_min) := FALSE;
+
+  -- Time
+  next(time) :=
+    case
+      time = 23 : 0;
+      TRUE : time + 1;
+    esac;
+
+  -- Sensor values hold
+  next(motion_sensor) := motion_sensor;
+  next(temperature) := temperature;
+  next(movie_mode) := movie_mode;
+  next(doors_closed) := doors_closed;
+  next(windows_open) := windows_open;
+  next(away_mode) := away_mode;
+
+  -- Motion logic
+  next(no_motion) :=
+    case
+      motion_sensor = FALSE : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  next(no_motion_for_10_min) :=
+    case
+      no_motion = TRUE : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  -- Devices
+  next(Virtual_Light) :=
+    case
+      motion_sensor = TRUE : TRUE;
+      time = 6 & (Virtual_TV1 = on | Virtual_TV1 = muted) : FALSE;
+      no_motion_for_10_min = TRUE : FALSE;
+      TRUE : Virtual_Light;
+    esac;
+
+  next(Virtual_AC1) :=
+    case
+      motion_sensor = TRUE & windows_open = FALSE : TRUE;
+      doors_closed = TRUE & no_motion = TRUE : FALSE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_AC2) :=
+    case
+      temperature > 80 : TRUE;
+      temperature < 65 : FALSE;
+      TRUE : Virtual_AC2;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fan1) :=
+    case
+      time = 6 : FALSE;
+      TRUE : Virtual_Fan1;
+    esac;
+
+  next(Virtual_Fan2) :=
+    case
+      time = 22 : FALSE;
+      TRUE : Virtual_Fan2;
+    esac;
+
+  next(Virtual_Fan3) :=
+    case
+      temperature < 68 : off;
+      TRUE : Virtual_Fan3;
+    esac;
+
+  next(Virtual_Fan4) :=
+    case
+      temperature > 80 : low;
+      TRUE : Virtual_Fan4;
+    esac;
+
+  next(Virtual_Fan5) :=
+    case
+      movie_mode = TRUE : low;
+      TRUE : Virtual_Fan5;
+    esac;
+
+  next(Virtual_TV1) :=
+    case
+      time >= 0 & time < 6 : off;
+      time >= 6 & no_motion = TRUE & time < 22 : on;
+      time >= 22 : off;
+      TRUE : Virtual_TV1;
+    esac;
+
+  next(Virtual_TV2) :=
+    case
+      movie_mode = TRUE : TRUE;
+      TRUE : Virtual_TV2;
+    esac;
+
+  next(Virtual_Fridge1) :=
+    case
+      TRUE : Virtual_Fridge1;
+    esac;
+
+-- LTL Specifications
+LTLSPEC G (windows_open -> !Virtual_AC1);
+LTLSPEC G (no_motion_for_10_min -> !Virtual_Light);
+LTLSPEC G (temperature < 68 -> Virtual_Fan3 = off);
+LTLSPEC G ((time >= 0 & time < 6) -> Virtual_TV1 = off);
+LTLSPEC G (temperature < 65 -> !Virtual_AC2);

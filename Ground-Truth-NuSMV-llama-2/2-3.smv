@@ -1,0 +1,139 @@
+MODULE main
+VAR
+  Virtual_Switch : boolean;
+  Virtual_Fan5 : {off, on};
+  Virtual_Light : boolean;
+  leaving_home : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan3 : boolean;
+  Motion_Sensor : boolean;
+  temperature : 60..100;
+  Virtual_AC1 : boolean;
+  Virtual_Fan2 : boolean;
+  no_motion : boolean;
+  time_no_motion : 0..60;
+  Virtual_TV3 : boolean;
+  time_no_one_detected : 0..60;
+  Virtual_A_C2 : boolean;
+  Virtual_Motion_Sensor : boolean;
+  Virtual_Fan4 : {off, low, medium, high};
+  Virtual_Fan4_speed : {off, low, medium, high};
+
+ASSIGN
+  -- Initializations
+  init(Virtual_Switch) := FALSE;
+  init(Virtual_Fan5) := off;
+  init(Virtual_Light) := FALSE;
+  init(leaving_home) := FALSE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan3) := FALSE;
+  init(Motion_Sensor) := FALSE;
+  init(temperature) := 70;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(no_motion) := FALSE;
+  init(time_no_motion) := 0;
+  init(Virtual_TV3) := FALSE;
+  init(time_no_one_detected) := 0;
+  init(Virtual_A_C2) := FALSE;
+  init(Virtual_Motion_Sensor) := FALSE;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan4_speed) := off;
+
+  -- Transitions
+  next(Virtual_Switch) := Virtual_Switch;
+
+  next(Virtual_Fan5) :=
+    case
+      Virtual_Switch = TRUE : on;
+      leaving_home = TRUE : off;
+      TRUE : Virtual_Fan5;
+    esac;
+
+  next(Virtual_Light) :=
+    case
+      Virtual_Switch = TRUE : TRUE;
+      leaving_home = TRUE : FALSE;
+      TRUE : Virtual_Light;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      temperature < 70 : FALSE;
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fan3) :=
+    case
+      temperature > 75 : TRUE;
+      TRUE : Virtual_Fan3;
+    esac;
+
+  next(Motion_Sensor) := Motion_Sensor;
+
+  next(temperature) := temperature;
+
+  next(Virtual_AC1) :=
+    case
+      Motion_Sensor = TRUE & temperature > 70 : TRUE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_Fan2) :=
+    case
+      Virtual_Motion_Sensor = TRUE : TRUE;
+      TRUE : Virtual_Fan2;
+    esac;
+
+  next(no_motion) :=
+    case
+      Motion_Sensor = FALSE : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  next(time_no_motion) :=
+    case
+      no_motion = TRUE & time_no_motion < 60 : time_no_motion + 1;
+      no_motion = FALSE : 0;
+      TRUE : time_no_motion;
+    esac;
+
+  next(Virtual_TV3) :=
+    case
+      time_no_one_detected >= 15 : FALSE;
+      TRUE : Virtual_TV3;
+    esac;
+
+  next(time_no_one_detected) :=
+    case
+      no_motion = TRUE & time_no_one_detected < 60 : time_no_one_detected + 1;
+      no_motion = FALSE : 0;
+      TRUE : time_no_one_detected;
+    esac;
+
+  next(Virtual_A_C2) :=
+    case
+      TRUE : Virtual_A_C2;
+    esac;
+
+  next(Virtual_Motion_Sensor) := Virtual_Motion_Sensor;
+
+  next(Virtual_Fan4) :=
+    case
+      temperature > 85 : medium; -- deterministic assignment (can randomize if needed)
+      TRUE : Virtual_Fan4;
+    esac;
+
+  next(Virtual_Fan4_speed) :=
+    case
+      temperature > 85 : medium;
+      TRUE : Virtual_Fan4_speed;
+    esac;
+
+  next(leaving_home) := leaving_home;
+
+-- LTL Specifications
+LTLSPEC G (Virtual_AC3 -> temperature >= 70);
+LTLSPEC G (Virtual_A_C2 -> temperature <= 78);
+LTLSPEC G (Virtual_Fan5 = on -> X (Virtual_Fan5 = off | Motion_Sensor = TRUE));
+LTLSPEC G (temperature > 85 -> Virtual_Fan4_speed = medium);

@@ -1,0 +1,146 @@
+MODULE main
+VAR
+  Virtual_Switch : boolean;
+  Virtual_Fan5 : boolean;
+  Virtual_Light : boolean;
+  home : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan3 : boolean;
+  Motion_Sensor : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_Fan2 : boolean;
+  temperature : 60..100;
+  Virtual_Fan4 : {off, low, medium, high};
+  Virtual_Fan3_state : {off, low, high};
+  Virtual_A_C2 : boolean;
+  Virtual_Fan2_state : {off, low, high};
+  Virtual_Motion_Sensor : boolean;
+  no_motion : boolean;
+  no_motion_counter : 0..15;
+  Virtual_TV3 : boolean;
+  Virtual_TV3_mute : boolean;
+  Virtual_A_C1_eco : boolean;
+  occupied_rooms : boolean;
+  dark_areas : boolean;
+  Virtual_Fan1 : boolean;
+  Virtual_A_C2_running : boolean;
+
+ASSIGN
+  -- Initializations
+  init(Virtual_Switch) := FALSE;
+  init(Virtual_Fan5) := FALSE;
+  init(Virtual_Light) := FALSE;
+  init(home) := TRUE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan3) := FALSE;
+  init(Motion_Sensor) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(temperature) := 70;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan3_state) := off;
+  init(Virtual_A_C2) := FALSE;
+  init(Virtual_Fan2_state) := off;
+  init(Virtual_Motion_Sensor) := FALSE;
+  init(no_motion) := TRUE;
+  init(no_motion_counter) := 0;
+  init(Virtual_TV3) := FALSE;
+  init(Virtual_TV3_mute) := FALSE;
+  init(Virtual_A_C1_eco) := FALSE;
+  init(occupied_rooms) := FALSE;
+  init(dark_areas) := FALSE;
+  init(Virtual_Fan1) := FALSE;
+  init(Virtual_A_C2_running) := FALSE;
+
+  -- Transitions
+  next(Virtual_Fan5) :=
+    case
+      Virtual_Switch = TRUE : TRUE;
+      TRUE : Virtual_Fan5;
+    esac;
+
+  next(Virtual_Light) :=
+    case
+      occupied_rooms = TRUE & dark_areas = TRUE : TRUE;
+      TRUE : Virtual_Light;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      home = FALSE : FALSE;
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fan3) := Virtual_Fan3;
+
+  next(Virtual_AC1) :=
+    case
+      Motion_Sensor = TRUE & temperature > 80 : TRUE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_Fan2) :=
+    case
+      TRUE : Virtual_Fan2;
+    esac;
+
+  next(Virtual_Fan3_state) :=
+    case
+      temperature > 75 : low;
+      TRUE : Virtual_Fan3_state;
+    esac;
+
+  next(Virtual_A_C2) :=
+    case
+      Virtual_Motion_Sensor = TRUE : TRUE;
+      TRUE : Virtual_A_C2;
+    esac;
+
+  next(Virtual_Fan2_state) :=
+    case
+      Virtual_Motion_Sensor = TRUE : low;
+      TRUE : Virtual_Fan2_state;
+    esac;
+
+  next(Virtual_TV3) :=
+    case
+      no_motion_counter >= 15 : FALSE;
+      TRUE : Virtual_TV3;
+    esac;
+
+  next(Virtual_TV3_mute) :=
+    case
+      no_motion_counter >= 15 : TRUE;
+      TRUE : Virtual_TV3_mute;
+    esac;
+
+  next(Virtual_A_C1_eco) :=
+    case
+      home = FALSE : TRUE;
+      TRUE : Virtual_A_C1_eco;
+    esac;
+
+  next(Virtual_Fan1) :=
+    case
+      Virtual_A_C2_running = TRUE : FALSE;
+      TRUE : Virtual_Fan1;
+    esac;
+
+  next(no_motion_counter) :=
+    case
+      no_motion = TRUE & no_motion_counter < 15 : no_motion_counter + 1;
+      no_motion = FALSE : 0;
+      TRUE : no_motion_counter;
+    esac;
+
+  next(Virtual_A_C2_running) :=
+    case
+      Virtual_A_C2 = TRUE : TRUE;
+      TRUE : Virtual_A_C2_running;
+    esac;
+
+-- LTL Specifications
+LTLSPEC G (no_motion_counter = 15 -> !Virtual_TV3);
+LTLSPEC G (home = FALSE -> Virtual_A_C1_eco);
+LTLSPEC G ((occupied_rooms = TRUE & dark_areas = TRUE) -> Virtual_Light);
+LTLSPEC G (Virtual_A_C2_running -> !Virtual_Fan1);

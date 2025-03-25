@@ -1,0 +1,136 @@
+MODULE main
+VAR
+  Virtual_Switch : boolean;
+  Virtual_Fan5 : boolean;
+  Virtual_Light : boolean;
+  away_mode : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan3 : boolean;
+  Motion_Sensor : boolean;
+  temperature : 60..100;
+  Virtual_AC1 : boolean;
+  Virtual_Fan2 : boolean;
+  Virtual_Fan4 : {off, low, medium, high};
+  no_motion : boolean;
+  no_motion_for_10_min : boolean;
+  Virtual_TV3 : boolean;
+  Virtual_A_C2 : boolean;
+  windows_open : boolean;
+  room_temperature : 60..100;
+  Virtual_TV1 : {off, on, muted};
+  Virtual_AC2 : boolean;
+
+ASSIGN
+  -- Initial States
+  init(Virtual_Switch) := FALSE;
+  init(Virtual_Fan5) := FALSE;
+  init(Virtual_Light) := FALSE;
+  init(away_mode) := FALSE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan3) := FALSE;
+  init(Motion_Sensor) := FALSE;
+  init(temperature) := 70;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(Virtual_Fan4) := off;
+  init(no_motion) := FALSE;
+  init(no_motion_for_10_min) := FALSE;
+  init(Virtual_TV3) := FALSE;
+  init(Virtual_A_C2) := FALSE;
+  init(windows_open) := FALSE;
+  init(room_temperature) := 70;
+  init(Virtual_TV1) := off;
+  init(Virtual_AC2) := FALSE;
+
+  -- Transitions
+  next(Virtual_Fan5) :=
+    case
+      Virtual_Switch = TRUE : TRUE;
+      TRUE : Virtual_Fan5;
+    esac;
+
+  next(Virtual_Light) :=
+    case
+      no_motion_for_10_min = TRUE : FALSE;
+      TRUE : Virtual_Light;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      away_mode = TRUE : FALSE;
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fan3) :=
+    case
+      room_temperature > 75 : TRUE;
+      room_temperature < 68 : FALSE;
+      TRUE : Virtual_Fan3;
+    esac;
+
+  next(Virtual_AC1) :=
+    case
+      Motion_Sensor = TRUE & temperature > 80 : TRUE;
+      windows_open = TRUE : FALSE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_Fan2) :=
+    case
+      Virtual_A_C2 = TRUE : TRUE;
+      TRUE : Virtual_Fan2;
+    esac;
+
+  next(Virtual_TV3) :=
+    case
+      TRUE : Virtual_TV3;
+    esac;
+
+  next(Virtual_A_C2) :=
+    case
+      Motion_Sensor = TRUE : TRUE;
+      room_temperature < 65 : FALSE;
+      TRUE : Virtual_A_C2;
+    esac;
+
+  next(Virtual_AC2) :=
+    case
+      Motion_Sensor = TRUE & room_temperature > 65 : TRUE;
+      room_temperature < 65 : FALSE;
+      TRUE : Virtual_AC2;
+    esac;
+
+  next(no_motion_for_10_min) :=
+    case
+      no_motion = TRUE : TRUE;
+      TRUE : no_motion_for_10_min;
+    esac;
+
+  next(windows_open) :=
+    case
+      TRUE : windows_open;
+    esac;
+
+  next(room_temperature) :=
+    case
+      TRUE : room_temperature;
+    esac;
+
+  next(Virtual_TV1) :=
+    case
+      room_temperature > 75 & room_temperature < 90 & Virtual_Switch = TRUE : on;
+      room_temperature >= 90 : off;
+      room_temperature < 75 : off;
+      TRUE : Virtual_TV1;
+    esac;
+
+-- LTL Specifications
+LTLSPEC G (windows_open -> !Virtual_AC1);
+
+LTLSPEC G (no_motion_for_10_min -> !Virtual_Light);
+
+LTLSPEC G (room_temperature < 68 -> Virtual_Fan3 = FALSE);
+
+LTLSPEC G ((Virtual_TV1 = on) -> (room_temperature >= 75 & room_temperature < 90));
+
+LTLSPEC G (room_temperature < 65 -> !Virtual_AC2);

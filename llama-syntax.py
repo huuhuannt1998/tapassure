@@ -2,7 +2,7 @@ import requests
 # from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from vllm import LLM, SamplingParams
+# from vllm import LLM, SamplingParams
 import os
 import subprocess
 import yaml
@@ -1053,7 +1053,7 @@ while True:
     # else:
     #     print(f"\n Failed to generate a valid NuSMV model after {iteration_count} iterations.")
     #     print("Error details:", final_nusmv_model)
-    valid_nusmv_model = generate_valid_nusmv_model(scenarios1, safety_properties1, model_file)
+    valid_nusmv_model = generate_valid_nusmv_model(scenarios3, safety_properties2, model_file)
 
     # if valid_nusmv_model:
     #     print("\n✅ Process 1 completed successfully. Ready for Process 2!")

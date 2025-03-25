@@ -1,25 +1,134 @@
-```smv
 MODULE main
 VAR
-device1 : boolean;
-device2 : {off, low, medium, high};
+motion_sensor : boolean;
+time : 0..1440;
+temperature : 60..100;
+virtual_switch : boolean;
+leaving_home : boolean;
+room_occupied : boolean;
+living_room_motion : boolean;
+virtual_light : boolean;
+virtual_ac1 : boolean;
+virtual_ac2 : boolean;
+virtual_ac3 : boolean;
+virtual_fan1 : boolean;
+virtual_fan2 : boolean;
+virtual_fan3 : boolean;
+virtual_fan4 : {off, low, medium, high};
+virtual_fan5 : {off, low, high};
+virtual_tv1 : boolean;
 
 ASSIGN
-init(device1) := FALSE;
-init(device2) := off;
+init(virtual_light) := FALSE;
+init(virtual_ac1) := FALSE;
+init(virtual_ac2) := FALSE;
+init(virtual_ac3) := FALSE;
+init(virtual_fan1) := FALSE;
+init(virtual_fan2) := FALSE;
+init(virtual_fan3) := FALSE;
+init(virtual_fan4) := off;
+init(virtual_fan5) := off;
+init(virtual_tv1) := FALSE;
+init(leaving_home) := FALSE;
+init(room_occupied) := FALSE;
+init(living_room_motion) := FALSE;
 
-TRANS
-next(device1) := 
+next(virtual_light) := 
     case
-    device2 = off : TRUE;
-    device2 = low : FALSE;
-    TRUE : device1;
-    esac;
-next(device2) := 
-    case
-    device1 : {low, medium, high};
-    TRUE : device2;
+    virtual_switch = TRUE : TRUE;
+    leaving_home = TRUE : FALSE;
+    TRUE : virtual_light;
     esac;
 
-LTLSPEC
-G(!(device1 & device2 != off))
+next(virtual_ac1) := 
+    case
+    temperature > 75 & motion_sensor = TRUE : TRUE;
+    TRUE : virtual_ac1;
+    esac;
+
+next(virtual_ac2) := 
+    case
+    living_room_motion = TRUE : TRUE;
+    temperature > 78 : FALSE;
+    TRUE : virtual_ac2;
+    esac;
+
+next(virtual_ac3) := 
+    case
+    temperature < 70 : FALSE;
+    TRUE : virtual_ac3;
+    esac;
+
+next(virtual_fan1) := 
+    case
+    temperature > 75 : TRUE;
+    TRUE : virtual_fan1;
+    esac;
+
+next(virtual_fan2) := 
+    case
+    living_room_motion = TRUE : TRUE;
+    TRUE : virtual_fan2;
+    esac;
+
+next(virtual_fan3) := 
+    case
+    temperature > 75 : TRUE;
+    leaving_home = TRUE : FALSE;
+    TRUE : virtual_fan3;
+    esac;
+
+next(virtual_fan4) := 
+    case
+    temperature > 85 : medium;
+    temperature <= 85 & virtual_fan4 = medium : off;
+    leaving_home = TRUE : off;
+    TRUE : virtual_fan4;
+    esac;
+
+next(virtual_fan5) := 
+    case
+    virtual_switch = TRUE : high;
+    leaving_home = TRUE : off;
+    time >= 600 & virtual_fan5 = high : off;
+    time >= 600 & virtual_fan5 = low : off;
+    time >= 600 : off;
+    TRUE : virtual_fan5;
+    esac;
+
+next(virtual_tv1) := 
+    case
+    room_occupied = FALSE & time >= 900 : FALSE;
+    TRUE : virtual_tv1;
+    esac;
+
+next(time) := 
+    case
+    time < 1440 : time + 1;
+    TRUE : 0;  -- Reset time once it reaches 1440 (end of day)
+    esac;
+
+next(leaving_home) := 
+    case
+    room_occupied = FALSE : TRUE;
+    TRUE : leaving_home;
+    esac;
+
+next(room_occupied) := 
+    case
+    motion_sensor = TRUE : TRUE;
+    TRUE : room_occupied;
+    esac;
+
+next(living_room_motion) := 
+    case
+    TRUE : living_room_motion;
+    esac;
+
+LTLSPEC G (virtual_fan4 = medium -> temperature > 85) -- Virtual Fan 4 must operate at medium speed if the temperature exceeds 85°F.
+
+LTLSPEC G (virtual_fan5 = high -> time < 600) -- Virtual Fan 5 must not remain on for more than 1 hour without activity detection.
+
+LTLSPEC G (virtual_ac3 = TRUE -> temperature >= 70) -- Virtual A/C 3 must deactivate if the room temperature drops below 70°F.
+
+LTLSPEC G (virtual_ac2 = TRUE -> temperature <= 78) -- Virtual A/C 2 must not exceed 78°F.

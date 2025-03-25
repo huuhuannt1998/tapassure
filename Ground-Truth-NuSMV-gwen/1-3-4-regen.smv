@@ -1,21 +1,107 @@
-```smv
 MODULE main
 VAR
-device1 : boolean;
-device2 : {off, low, medium, high};
+    motion_sensor : boolean;
+    no_motion : boolean;
+    time : 0..24;
+    temperature : 50..100;
+    away_mode : boolean;
+    activity_detected : boolean;
+    fan5_active_time : 0..60;  -- Tracks Fan 5 duration
+    
+    Virtual_Light : boolean;
+    Virtual_AC1 : boolean;
+    Virtual_AC2 : boolean;
+    Virtual_AC3 : boolean;
+    Virtual_Fan1 : {off, low, medium, high};
+    Virtual_Fan4 : {off, low, medium, high};
+    Virtual_Fan5 : boolean;
+    Virtual_TV1 : boolean;
+    Virtual_Fridge1 : boolean;
 
 ASSIGN
-init(device1) := FALSE;
-init(device2) := off;
+    -- Initial states
+    init(Virtual_Light) := FALSE;
+    init(Virtual_AC1) := FALSE;
+    init(Virtual_AC2) := FALSE;
+    init(Virtual_AC3) := FALSE;
+    init(Virtual_Fan1) := off;
+    init(Virtual_Fan4) := off;
+    init(Virtual_Fan5) := FALSE;
+    init(Virtual_TV1) := FALSE;
+    init(Virtual_Fridge1) := FALSE;
+    init(fan5_active_time) := 0;
 
-TRANS
-next(device1) := 
-    case
-    device2 = off & device1 = FALSE : TRUE;
-    device2 != off & device1 = FALSE : FALSE;
-    device2 = off & device1 = TRUE : FALSE;
-    device2 != off & device1 = TRUE : TRUE;
-    esac;
+    -- Merged Virtual_Light conditions
+    next(Virtual_Light) := 
+        case
+            (motion_sensor & !away_mode) : TRUE;
+            (motion_sensor & away_mode) : TRUE;
+            no_motion : FALSE;
+            TRUE : Virtual_Light;
+        esac;
 
-LTLSPEC
-G(!(device1 & device2 != off))
+    next(Virtual_AC1) := 
+        case
+            no_motion : FALSE;
+            TRUE : Virtual_AC1;
+        esac;
+
+    next(Virtual_TV1) := 
+        case
+            (time = 18) : TRUE;
+            TRUE : Virtual_TV1;
+        esac;
+
+    next(Virtual_Fan1) := 
+        case
+            (time = 18) : medium;
+            TRUE : Virtual_Fan1;
+        esac;
+
+    next(Virtual_Fridge1) := 
+        case
+            (time = 7) : TRUE;
+            TRUE : Virtual_Fridge1;
+        esac;
+
+    next(Virtual_AC2) := 
+        case
+            (time = 7) : TRUE;
+            (temperature > 78) : FALSE;
+            (temperature <= 78 & Virtual_AC2) : TRUE;
+            TRUE : Virtual_AC2;
+        esac;
+
+    next(Virtual_AC3) := 
+        case
+            (temperature < 70) : FALSE; -- Virtual A/C 3 must deactivate if temperature drops below 70°F
+            (temperature >= 70 & !Virtual_AC3) : TRUE;
+            (temperature >= 70 & Virtual_AC3) : Virtual_AC3;
+            TRUE : Virtual_AC3;
+        esac;
+
+    next(Virtual_Fan5) := 
+        case
+            activity_detected : TRUE; -- Fan5 turns on when activity is detected
+            (fan5_active_time >= 60 & !activity_detected) : FALSE; -- Fan5 turns off if active for more than 60 min without activity detection
+            TRUE : Virtual_Fan5;
+        esac;
+
+    -- Fan 5 active timer (capped at 60)
+    next(fan5_active_time) := 
+        case
+            (Virtual_Fan5 & fan5_active_time < 60) : fan5_active_time + 1;
+            (!Virtual_Fan5 & fan5_active_time > 0) : 0;
+            TRUE : fan5_active_time;
+        esac;
+
+    next(Virtual_Fan4) := 
+        case
+            (temperature > 85) : medium; -- Virtual Fan 4 must operate at medium speed if temperature exceeds 85°F
+            TRUE : Virtual_Fan4;
+        esac;
+
+LTLSPEC G (temperature < 70 -> !Virtual_AC3); -- Virtual A/C 3 must deactivate if temperature drops below 70°F
+LTLSPEC G (temperature > 78 -> !Virtual_AC2); -- Virtual A/C 2 must not exceed 78°F
+LTLSPEC G (Virtual_Fan5 -> F (fan5_active_time >= 60 -> !Virtual_Fan5));
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium); -- Virtual Fan 4 must operate at medium speed if temperature exceeds 85°F

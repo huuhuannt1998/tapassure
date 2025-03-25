@@ -1,0 +1,177 @@
+MODULE main
+VAR
+  virtual_switch : boolean;
+  virtual_fan5 : {off, on};
+  virtual_light : boolean;
+  away_mode : boolean;
+  virtual_ac3 : boolean;
+  virtual_fan3 : boolean;
+  motion_sensor : boolean;
+  temperature : 60..100;
+  virtual_ac1 : boolean;
+  virtual_fan2 : {off, on};
+  virtual_fan4 : {off, on};
+  no_motion : boolean;
+  no_motion_time : 0..10;
+  daylight : boolean;
+  virtual_tv3 : boolean;
+  virtual_tv3_time : 0..15;
+  virtual_tv4 : boolean;
+  virtual_tv4_time : 0..30;
+  virtual_fridge1 : boolean;
+  virtual_fridge1_time : 0..2;
+
+ASSIGN
+  -- Initial states
+  init(virtual_switch) := FALSE;
+  init(virtual_fan5) := off;
+  init(virtual_light) := FALSE;
+  init(away_mode) := FALSE;
+  init(virtual_ac3) := FALSE;
+  init(virtual_fan3) := FALSE;
+  init(motion_sensor) := FALSE;
+  init(temperature) := 70;
+  init(virtual_ac1) := FALSE;
+  init(virtual_fan2) := off;
+  init(virtual_fan4) := off;
+  init(no_motion) := FALSE;
+  init(no_motion_time) := 0;
+  init(daylight) := TRUE;
+  init(virtual_tv3) := FALSE;
+  init(virtual_tv3_time) := 0;
+  init(virtual_tv4) := FALSE;
+  init(virtual_tv4_time) := 0;
+  init(virtual_fridge1) := FALSE;
+  init(virtual_fridge1_time) := 0;
+
+  -- Switch-controlled fan
+  next(virtual_fan5) :=
+    case
+      virtual_switch = TRUE : on;
+      TRUE : virtual_fan5;
+    esac;
+
+  -- Light turns off after 10 min of no motion and during daylight
+  next(virtual_light) :=
+    case
+      virtual_switch = TRUE & !daylight : TRUE;
+      no_motion_time = 10 : FALSE;
+      daylight : FALSE;
+      TRUE : virtual_light;
+    esac;
+
+  -- Away mode remains active once set
+  next(away_mode) :=
+    case
+      away_mode = TRUE : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  -- AC3 turns off in away mode
+  next(virtual_ac3) :=
+    case
+      away_mode = TRUE : FALSE;
+      TRUE : virtual_ac3;
+    esac;
+
+  -- Fan3 activates above 75°F
+  next(virtual_fan3) :=
+    case
+      temperature > 75 : TRUE;
+      TRUE : virtual_fan3;
+    esac;
+
+  -- Motion sensor input (external)
+  next(motion_sensor) := motion_sensor;
+
+  -- AC1 activates when hot & motion; stays otherwise
+  next(virtual_ac1) :=
+    case
+      motion_sensor = TRUE & temperature > 80 : TRUE;
+      TRUE : virtual_ac1;
+    esac;
+
+  -- Fan2 on when motion; off in away mode
+  next(virtual_fan2) :=
+    case
+      motion_sensor = TRUE : on;
+      away_mode = TRUE : off;
+      TRUE : virtual_fan2;
+    esac;
+
+  -- Motion tracking
+  next(no_motion) :=
+    case
+      motion_sensor = FALSE : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  -- Time since last motion
+  next(no_motion_time) :=
+    case
+      no_motion = TRUE & no_motion_time < 10 : no_motion_time + 1;
+      motion_sensor = TRUE : 0;
+      TRUE : no_motion_time;
+    esac;
+
+  -- Daylight flag (static here)
+  next(daylight) := daylight;
+
+  -- TV3 auto turn-off after 15 steps
+  next(virtual_tv3) :=
+    case
+      virtual_tv3_time = 15 : FALSE;
+      TRUE : virtual_tv3;
+    esac;
+
+  next(virtual_tv3_time) :=
+    case
+      virtual_tv3 = FALSE : 0;
+      virtual_tv3_time < 15 : virtual_tv3_time + 1;
+      TRUE : virtual_tv3_time;
+    esac;
+
+  -- TV4 auto turn-off after 30 steps
+  next(virtual_tv4) :=
+    case
+      virtual_tv4_time = 30 : FALSE;
+      TRUE : virtual_tv4;
+    esac;
+
+  next(virtual_tv4_time) :=
+    case
+      virtual_tv4 = FALSE : 0;
+      virtual_tv4_time < 30 : virtual_tv4_time + 1;
+      TRUE : virtual_tv4_time;
+    esac;
+
+  -- Fridge closes after 2 steps
+  next(virtual_fridge1) :=
+    case
+      virtual_fridge1_time = 2 : FALSE;
+      TRUE : virtual_fridge1;
+    esac;
+
+  next(virtual_fridge1_time) :=
+    case
+      virtual_fridge1 = FALSE : 0;
+      virtual_fridge1_time < 2 : virtual_fridge1_time + 1;
+      TRUE : virtual_fridge1_time;
+    esac;
+
+-- LTL Specifications
+
+-- Devices off when away
+LTLSPEC G (away_mode -> !(virtual_ac1 | virtual_fan2 = on | virtual_fan5 = on | virtual_light));
+
+-- Turn off lights during daylight
+LTLSPEC G (daylight -> !virtual_light);
+
+-- Fan conflict prevention
+LTLSPEC G !(virtual_fan2 = on & virtual_fan3 = TRUE & virtual_fan4 = on & virtual_fan5 = on);
+
+-- TV4 must turn off after 30 steps
+LTLSPEC G (virtual_tv4 -> X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X (!virtual_tv4));
+
+-- Fridge auto closes after 2 steps
+LTLSPEC G (virtual_fridge1 -> X X (!virtual_fridge1));

@@ -1,205 +1,136 @@
 MODULE main
 VAR
-    motion_sensor : boolean;
-    time : 0..24;
-    temperature : 60..100;
-    movie_mode : boolean;
-    doors_closed : boolean;
-    no_motion : boolean;
-    dining_room_motion : boolean;
-    living_room_motion : boolean;
-    Virtual_Light : boolean;
-    Virtual_AC1 : boolean;
-    Virtual_AC2 : boolean;
-    Virtual_AC3 : boolean;
-    Virtual_Fan1 : boolean;
-    Virtual_Fan2 : boolean;
-    Virtual_Fan4 : {off, low, medium, high};
-    Virtual_Fan5 : {off, low, high};
-    Virtual_TV1 : {off, on, muted};
-    Virtual_TV2 : boolean;
-    Virtual_Fridge1 : boolean;
+motion_sensor : boolean;
+time : 0..1440;
+temperature : 60..100;
+virtual_switch : boolean;
+leaving_home : boolean;
+room_occupied : boolean;
+living_room_motion : boolean;
+virtual_light : boolean;
+virtual_ac1 : boolean;
+virtual_ac2 : boolean;
+virtual_ac3 : boolean;
+virtual_fan1 : boolean;
+virtual_fan2 : boolean;
+virtual_fan3 : boolean;
+virtual_fan4 : {off, low, medium, high};
+virtual_fan5 : {off, low, high};
+virtual_tv1 : boolean;
 
 ASSIGN
-    init(Virtual_Light) := FALSE;
-    init(Virtual_AC1) := FALSE;
-    init(Virtual_AC2) := FALSE;
-    init(Virtual_AC3) := FALSE;
-    init(Virtual_Fan1) := FALSE;
-    init(Virtual_Fan2) := FALSE;
-    init(Virtual_Fan4) := off;
-    init(Virtual_Fan5) := off;
-    init(Virtual_TV1) := off;
-    init(Virtual_TV2) := FALSE;
-    init(Virtual_Fridge1) := FALSE;
+init(virtual_light) := FALSE;
+init(virtual_ac1) := FALSE;
+init(virtual_ac2) := FALSE;
+init(virtual_ac3) := FALSE;
+init(virtual_fan1) := FALSE;
+init(virtual_fan2) := FALSE;
+init(virtual_fan3) := FALSE;
+init(virtual_fan4) := off;
+init(virtual_fan5) := off;
+init(virtual_tv1) := FALSE;
+init(leaving_home) := FALSE;
+init(room_occupied) := FALSE;
+init(living_room_motion) := FALSE;
 
-    next(Virtual_Light) := 
-        case 
-            (dining_room_motion = TRUE | motion_sensor = TRUE) & time >= 6 & time < 22 : TRUE;
-            !(dining_room_motion = TRUE | motion_sensor = TRUE) | time < 6 | time >= 22 : FALSE;
-            TRUE : Virtual_Light;
-        esac;
+next(virtual_light) := 
+    case
+    virtual_switch = TRUE : TRUE;
+    leaving_home = TRUE : FALSE;
+    time >= 600 & motion_sensor = FALSE : FALSE;
+    TRUE : virtual_light;
+    esac;
 
-    next(Virtual_AC1) := 
-        case 
-            motion_sensor = TRUE & temperature > 70 : TRUE;
-            !(motion_sensor = TRUE & temperature > 70) : FALSE;
-            TRUE : Virtual_AC1;
-        esac;
+next(virtual_ac1) := 
+    case
+    temperature > 75 & motion_sensor = TRUE : TRUE;
+    temperature <= 70 : FALSE;
+    TRUE : virtual_ac1;
+    esac;
 
-    next(Virtual_AC2) := 
-        case 
-            temperature > 80 & time > 6 & time < 22 : TRUE;
-            temperature <= 80 | time <= 6 | time >= 22 : FALSE;
-            TRUE : Virtual_AC2;
-        esac;
+next(virtual_ac2) := 
+    case
+    living_room_motion = TRUE : TRUE;
+    TRUE : virtual_ac2;
+    esac;
 
-    next(Virtual_AC3) := 
-        case 
-            temperature > 70 & !(doors_closed & no_motion) & time > 6 & time < 22 : TRUE;
-            temperature <= 70 | (doors_closed & no_motion) | time <= 6 | time >= 22 : FALSE;
-            TRUE : Virtual_AC3;
-        esac;
+next(virtual_ac3) := 
+    case
+    temperature < 70 : FALSE;
+    TRUE : virtual_ac3;
+    esac;
 
-    next(Virtual_Fan1) := 
-        case 
-            motion_sensor = TRUE : TRUE;
-            motion_sensor = FALSE : FALSE;
-            TRUE : Virtual_Fan1;
-        esac;
+next(virtual_fan1) := 
+    case
+    temperature > 75 : TRUE;
+    TRUE : virtual_fan1;
+    esac;
 
-    next(Virtual_Fan2) := 
-        case 
-            time = 22 : FALSE;
-            TRUE : Virtual_Fan2;
-        esac;
+next(virtual_fan2) := 
+    case
+    temperature > 75 : TRUE;
+    TRUE : virtual_fan2;
+    esac;
 
-    next(Virtual_Fan4) := 
-        case 
-            temperature > 85 : medium;
-            temperature > 80 & temperature <= 85 : low;
-            temperature <= 80 : off;
-            TRUE : Virtual_Fan4;
-        esac;
+next(virtual_fan3) := 
+    case
+    temperature > 75 : TRUE;
+    leaving_home = TRUE : FALSE;
+    TRUE : virtual_fan3;
+    esac;
 
-    next(Virtual_Fan5) := 
-        case 
-            motion_sensor = TRUE & Virtual_Fan5 = off : high;
-            motion_sensor = TRUE & movie_mode = TRUE & Virtual_Fan5 = off : low;
-            motion_sensor = TRUE & !movie_mode & Virtual_Fan5 = off : high;
-            !motion_sensor & Virtual_Fan5 != off : off;
-            motion_sensor = TRUE & Virtual_Fan5 = high : high;
-            motion_sensor = TRUE & Virtual_Fan5 = low : low;
-            TRUE : Virtual_Fan5;
-        esac;
+next(virtual_fan4) := 
+    case
+    temperature >= 85 : medium;
+    temperature < 75 : off;
+    leaving_home = TRUE : off;
+    time >= 600 & virtual_fan4 = medium & living_room_motion = FALSE : off;
+    virtual_fan4 = medium & temperature < 85 : off;
+    TRUE : virtual_fan4;
+    esac;
 
-    next(Virtual_TV1) := 
-        case 
-            no_motion = TRUE & living_room_motion = FALSE & time > 5 & Virtual_TV1 != muted: muted;
-            living_room_motion = TRUE & Virtual_TV1 = muted: on;
-            no_motion = TRUE & living_room_motion = FALSE & time <= 5: on;
-            Virtual_TV1 = on & living_room_motion = TRUE: on;
-            Virtual_TV1 = muted & living_room_motion = TRUE: on;
-            Virtual_TV1 = muted & no_motion = FALSE: on;
-            Virtual_TV1 = on & !living_room_motion : off;
-            TRUE : Virtual_TV1;
-        esac;
+next(virtual_fan5) := 
+    case
+    virtual_switch = TRUE : high;
+    room_occupied = FALSE & time >= 600 : off;
+    leaving_home = TRUE : off;
+    time >= 720 & virtual_fan5 = high : off;
+    living_room_motion = FALSE & time >= 600 : off;
+    temperature < 70 : off;
+    time >= 600 & virtual_fan5 = high & living_room_motion = FALSE : off;
+    TRUE : virtual_fan5;
+    esac;
 
-    next(Virtual_TV2) := 
-        case 
-            movie_mode = TRUE & time > 19 & living_room_motion = TRUE & !Virtual_TV2: TRUE;
-            !(movie_mode = TRUE & time > 19 & living_room_motion = TRUE) & Virtual_TV2 = TRUE: FALSE;
-            movie_mode = TRUE & time > 19 & living_room_motion = TRUE & Virtual_TV2 = TRUE: TRUE;
-            TRUE : Virtual_TV2;
-        esac;
+next(virtual_tv1) := 
+    case
+    room_occupied = FALSE & time >= 900 : FALSE;
+    TRUE : virtual_tv1;
+    esac;
 
-    next(Virtual_Fridge1) := 
-        case 
-            dining_room_motion = TRUE & time >= 7 & time < 22 & !Virtual_Fridge1: TRUE;
-            !(dining_room_motion = TRUE & time >= 7 & time < 22) & Virtual_Fridge1: FALSE; 
-            dining_room_motion = TRUE & time >= 7 & time < 22 & Virtual_Fridge1 = TRUE: TRUE;
-            TRUE : Virtual_Fridge1;
-        esac;
+next(time) := 
+    case
+    time < 1440 : time + 1;
+    TRUE : 0;  -- Reset time once it reaches 1440 (end of day)
+    esac;
 
-    next(motion_sensor) := 
-        case 
-            dining_room_motion = TRUE | living_room_motion = TRUE : TRUE;
-            dining_room_motion = FALSE & living_room_motion = FALSE : FALSE;
-            TRUE : motion_sensor;
-        esac;
+next(leaving_home) := 
+    case
+    room_occupied = FALSE : TRUE;
+    TRUE : leaving_home;
+    esac;
 
-    next(no_motion) := 
-        case 
-            motion_sensor = FALSE : TRUE;
-            motion_sensor = TRUE : FALSE;
-            TRUE : no_motion;
-        esac;
+next(room_occupied) := 
+    case
+    motion_sensor = TRUE : TRUE;
+    TRUE : room_occupied;
+    esac;
 
-    next(doors_closed) := 
-        case 
-            time > 20 : TRUE;
-            time <= 20 : FALSE;
-            TRUE : doors_closed;
-        esac;
+next(living_room_motion) := 
+    case
+    motion_sensor = TRUE : TRUE;
+    TRUE : living_room_motion;
+    esac;
 
-    next(movie_mode) := 
-        case 
-            time > 19 : TRUE;
-            time <= 19 : FALSE;
-            TRUE : movie_mode;
-        esac;
+LTLSPEC G (virtual_fan4 = medium -> temperature >= 85)
 
-    next(dining_room_motion) := 
-        case 
-            time > 6 & time < 22 : TRUE;
-            time <= 6 | time >= 22 : FALSE;
-            TRUE : dining_room_motion;
-        esac;
-
-    next(living_room_motion) := 
-        case 
-            time > 17 & time < 23 : TRUE;
-            time <= 17 | time >= 23 : FALSE;
-            TRUE : living_room_motion;
-        esac;
-
-    next(temperature) := 
-        case 
-            Virtual_AC1 = TRUE & temperature > 60 : temperature - 1;
-            Virtual_AC2 = TRUE & temperature > 60 : temperature - 1;
-            Virtual_AC3 = TRUE & temperature > 60 : temperature - 1;
-            TRUE : temperature;
-        esac;
-
-LTLSPEC
-G (temperature < 70 -> !Virtual_AC3);
-LTLSPEC
-G (Virtual_AC2 -> temperature > 80);
-LTLSPEC
-G ((Virtual_Fan5 != off) -> F (motion_sensor = TRUE));
-LTLSPEC
-G (temperature > 85 -> Virtual_Fan4 = medium);
-LTLSPEC
-G (Virtual_Fan5 != off -> F (motion_sensor = TRUE));
-LTLSPEC
-G (Virtual_Fan5 = high -> F (motion_sensor = TRUE));
-LTLSPEC
-G (Virtual_TV1 = muted -> F (living_room_motion = TRUE));
-LTLSPEC
-G (Virtual_TV1 = on -> F (living_room_motion = TRUE));
-LTLSPEC
-G (Virtual_Fan4 = medium -> temperature > 85);
-LTLSPEC
-G (Virtual_Fan4 = low -> temperature > 80);
-LTLSPEC
-G (Virtual_AC2 -> temperature > 80);
-LTLSPEC
-G (Virtual_AC3 -> temperature > 70);
-LTLSPEC
-G (Virtual_AC1 -> motion_sensor = TRUE);
-LTLSPEC
-G (Virtual_Light -> (dining_room_motion = TRUE | motion_sensor = TRUE));
-LTLSPEC
-G (Virtual_Fridge1 -> (dining_room_motion = TRUE & time >= 7 & time < 22));
-LTLSPEC
-G (Virtual_TV2 -> (movie_mode = TRUE & time > 19 & living_room_motion = TRUE));
+LTLSPEC G (virtual_fan5 = high -> (living_room_motion = TRUE | time < 600))

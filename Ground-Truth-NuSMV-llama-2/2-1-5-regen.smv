@@ -1,0 +1,25 @@
+```smv
+MODULE main
+VAR
+    device1 : boolean;
+    device2 : {off, low, medium, high};
+
+ASSIGN
+    init(device1) := FALSE;
+    init(device2) := off;
+
+TRANS
+    next(device1) := 
+        case
+            device2 = off : TRUE;
+            device2 = low : FALSE;
+            TRUE : device1;
+        esac;
+    next(device2) := 
+        case
+            device1 : high;
+            TRUE : device2;
+        esac;
+
+LTLSPEC
+    G(!(device1 & device2 != off))

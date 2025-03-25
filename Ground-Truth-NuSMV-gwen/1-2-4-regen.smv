@@ -1,111 +1,78 @@
 MODULE main
 VAR
-    motion_sensor_bedroom : boolean;
-    motion_sensor_kitchen : boolean;
-    motion_sensor_dining : boolean;
-    motion_sensor_living : boolean;
-    movie_mode : boolean;
-    doors_closed : boolean;
-    no_motion : boolean;
-    time : 0..24;
-    temperature : 60..100;
-
-    Virtual_Light_bedroom : boolean;
-    Virtual_AC1_bedroom : boolean;
-    Virtual_AC2 : boolean;
-    Virtual_AC3 : boolean;
-    Virtual_Fan1_kitchen : boolean;
-    Virtual_Fan2 : boolean;
-    Virtual_Fan4 : {off, low, medium, high};
-    Virtual_Fan5 : {off, low, high};
-    Virtual_TV1 : {off, on, muted};
-    Virtual_TV2 : boolean;
-    Virtual_Fridge1 : boolean;
+motion_sensor : boolean;
+virtual_motion_sensor : boolean;
+time : 0..24;
+day : boolean;
+away_mode : boolean;
+virtual_fan1_room : boolean;
+virtual_fan2_room : boolean;
+tv_activity : boolean;
+fridge_open : boolean;
 
 ASSIGN
-    init(Virtual_Light_bedroom) := FALSE;
-    init(Virtual_AC1_bedroom) := FALSE;
-    init(Virtual_AC2) := FALSE;
-    init(Virtual_AC3) := FALSE;
-    init(Virtual_Fan1_kitchen) := FALSE;
-    init(Virtual_Fan2) := FALSE;
-    init(Virtual_Fan4) := off;
-    init(Virtual_Fan5) := off;
-    init(Virtual_TV1) := off;
-    init(Virtual_TV2) := FALSE;
-    init(Virtual_Fridge1) := FALSE;
+init(motion_sensor) := FALSE;
+init(virtual_motion_sensor) := FALSE;
+init(day) := TRUE;
+init(away_mode) := FALSE;
+init(virtual_fan1_room) := FALSE;
+init(virtual_fan2_room) := FALSE;
+init(tv_activity) := FALSE;
+init(fridge_open) := FALSE;
 
-    next(Virtual_Light_bedroom) := 
-    case
-        motion_sensor_bedroom = TRUE : TRUE;
-        time = 6 : FALSE;
-        TRUE : Virtual_Light_bedroom;
-    esac;
+next(time) := 
+case
+time = 24 : 0;
+TRUE : time + 1;
+esac;
 
-    next(Virtual_AC1_bedroom) := 
-    case
-        TRUE : Virtual_AC1_bedroom;
-    esac;
+next(day) := 
+case
+time >= 6 & time < 18 : TRUE;
+time >= 18 | time < 6 : FALSE;
+TRUE : day;
+esac;
 
-    next(Virtual_AC2) := 
-    case
-        temperature > 80 : TRUE;
-        temperature <= 78 : FALSE;
-        TRUE : Virtual_AC2;
-    esac;
+next(away_mode) := 
+case
+motion_sensor = TRUE : FALSE;
+TRUE : away_mode;
+esac;
 
-    next(Virtual_AC3) := 
-    case
-        (doors_closed & no_motion) = TRUE : FALSE;
-        temperature >= 70 : TRUE;
-        TRUE : Virtual_AC3;
-    esac;
+next(virtual_fan1_room) := 
+case
+virtual_fan2_room = TRUE : FALSE;
+TRUE : virtual_fan1_room;
+esac;
 
-    next(Virtual_Fan1_kitchen) := 
-    case
-        TRUE : Virtual_Fan1_kitchen;
-    esac;
+next(virtual_fan2_room) := 
+case
+virtual_fan1_room = TRUE : FALSE;
+TRUE : virtual_fan2_room;
+esac;
 
-    next(Virtual_Fan2) := 
-    case
-        time = 22 : FALSE;
-        TRUE : Virtual_Fan2;
-    esac;
+next(tv_activity) := 
+case
+time >= 6 & time < 18 : FALSE;
+TRUE : tv_activity;
+esac;
 
-    next(Virtual_Fan4) := 
-    case
-        temperature > 85 : medium;
-        temperature > 80 : low;
-        TRUE : Virtual_Fan4;
-    esac;
+next(fridge_open) := 
+case
+time = 7 : TRUE;
+time = 9 : FALSE;
+TRUE : fridge_open;
+esac;
 
-    next(Virtual_Fan5) := 
-    case
-        movie_mode = TRUE : low;
-        motion_sensor_bedroom = TRUE : high;
-        Virtual_Fan5 = off & motion_sensor_bedroom = TRUE : high;
-        TRUE : Virtual_Fan5;
-    esac;
+next(virtual_motion_sensor) := 
+case
+away_mode = TRUE : FALSE;
+day = TRUE & motion_sensor = FALSE : FALSE;
+TRUE : motion_sensor;
+esac;
 
-    next(Virtual_TV1) := 
-    case
-        no_motion = TRUE & time > 5 : muted;
-        TRUE : Virtual_TV1;
-    esac;
-
-    next(Virtual_TV2) := 
-    case
-        movie_mode = TRUE : TRUE;
-        TRUE : Virtual_TV2;
-    esac;
-
-    next(Virtual_Fridge1) := 
-    case
-        motion_sensor_dining = TRUE : TRUE;
-        TRUE : Virtual_Fridge1;
-    esac;
-
-LTLSPEC G (temperature < 70 -> !Virtual_AC3);
-LTLSPEC G (Virtual_AC2 -> temperature <= 78);
-LTLSPEC G ((Virtual_Fan5 != off) -> F motion_sensor_bedroom);
-LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);
+LTLSPEC G (away_mode -> !virtual_motion_sensor); -- Virtual Motion Sensor must not trigger devices in 'away mode'.
+LTLSPEC G (day -> (motion_sensor -> virtual_motion_sensor)); -- Virtual Light must turn on during daylight hours only if motion is detected.
+LTLSPEC G (virtual_fan1_room & virtual_fan2_room -> FALSE); -- Multiple Virtual Fans must not run in the same room simultaneously.
+LTLSPEC G (!tv_activity & !(X X X X X X X X X X tv_activity) -> !virtual_motion_sensor); -- Virtual TV 4 must turn off if no activity is detected for 30 minutes.
+LTLSPEC G (fridge_open & (X X X X X X X X X X fridge_open) -> FALSE); -- Virtual Fridge 1 must not remain open for more than 2 minutes.

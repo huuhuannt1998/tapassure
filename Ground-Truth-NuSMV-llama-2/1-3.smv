@@ -1,0 +1,102 @@
+MODULE main
+VAR
+  motion_sensor : boolean;
+  time : 0..24;
+  temperature : 60..100;
+  away_mode : boolean;
+
+  Virtual_Light : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_AC2 : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan1 : {off, low, medium, high};
+  Virtual_Fan4 : {off, low, medium, high};
+  Virtual_Fan5 : {off, low, medium, high};
+  Virtual_TV1 : {off, on};
+  Virtual_Fridge1 : boolean;
+
+ASSIGN
+  -- Initial states
+  init(Virtual_Light) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_AC2) := FALSE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan1) := off;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan5) := off;
+  init(Virtual_TV1) := off;
+  init(Virtual_Fridge1) := FALSE;
+  init(motion_sensor) := FALSE;
+  init(time) := 0;
+  init(temperature) := 70;
+  init(away_mode) := FALSE;
+
+  -- Time increment
+  next(time) :=
+    case
+      time = 24 : 0;
+      TRUE : time + 1;
+    esac;
+
+  -- Motion and device logic
+  next(Virtual_Light) :=
+    case
+      motion_sensor = TRUE : TRUE;
+      TRUE : Virtual_Light;
+    esac;
+
+  next(Virtual_AC1) :=
+    case
+      motion_sensor = FALSE : FALSE;
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_TV1) :=
+    case
+      time = 18 : on;
+      TRUE : Virtual_TV1;
+    esac;
+
+  next(Virtual_Fan1) :=
+    case
+      time = 18 : medium;
+      motion_sensor = TRUE & away_mode = TRUE : high;
+      TRUE : Virtual_Fan1;
+    esac;
+
+  next(Virtual_Fridge1) :=
+    case
+      time = 7 : TRUE;
+      TRUE : Virtual_Fridge1;
+    esac;
+
+  next(Virtual_AC2) :=
+    case
+      TRUE : Virtual_AC2;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      temperature < 70 : FALSE;
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fan4) :=
+    case
+      temperature > 85 : medium;
+      TRUE : Virtual_Fan4;
+    esac;
+
+  next(Virtual_Fan5) :=
+    case
+      motion_sensor = FALSE & Virtual_Fan5 = high : medium;
+      motion_sensor = FALSE & Virtual_Fan5 = medium : low;
+      motion_sensor = FALSE & Virtual_Fan5 = low : off;
+      TRUE : Virtual_Fan5;
+    esac;
+
+-- LTL Specifications
+LTLSPEC G (temperature < 70 -> !Virtual_AC3);
+-- Removed incomplete LTLSPEC G (temperature <= 78)
+LTLSPEC G (X X X X X X X X X X (Virtual_Fan5 = off));
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);

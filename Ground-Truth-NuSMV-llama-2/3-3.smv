@@ -1,0 +1,142 @@
+MODULE main
+VAR
+  motion_sensor_bedroom : boolean;
+  motion_sensor_dining : boolean;
+  motion_sensor_living : boolean;
+  time : 0..23;
+  temperature : 60..100;
+  movie_mode : boolean;
+  doors_closed : boolean;
+  no_motion : boolean;
+  sunrise : boolean;
+
+  Virtual_Light_bedroom : boolean;
+  Virtual_AC1 : boolean;
+  Virtual_AC2 : boolean;
+  Virtual_AC3 : boolean;
+  Virtual_Fan1 : boolean;
+  Virtual_Fan2 : boolean;
+  Virtual_Fan4 : {off, low, medium, high};
+  Virtual_Fan5 : {off, low, high};
+  Virtual_TV1 : {off, on, muted};
+  Virtual_TV2 : boolean;
+  Virtual_Fridge1 : boolean;
+
+  room_temperature_below_70 : boolean;
+  room_temperature_above_78 : boolean;
+  fan5_on_time : 0..60;
+
+ASSIGN
+  -- Initial states
+  init(Virtual_Light_bedroom) := FALSE;
+  init(Virtual_AC1) := FALSE;
+  init(Virtual_AC2) := FALSE;
+  init(Virtual_AC3) := FALSE;
+  init(Virtual_Fan1) := FALSE;
+  init(Virtual_Fan2) := FALSE;
+  init(Virtual_Fan4) := off;
+  init(Virtual_Fan5) := off;
+  init(Virtual_TV1) := off;
+  init(Virtual_TV2) := FALSE;
+  init(Virtual_Fridge1) := FALSE;
+  init(room_temperature_below_70) := FALSE;
+  init(room_temperature_above_78) := FALSE;
+  init(fan5_on_time) := 0;
+
+  -- Time and sensor values remain constant
+  next(temperature) := temperature;
+
+  -- Devices
+  next(Virtual_Light_bedroom) :=
+    case
+      motion_sensor_bedroom = TRUE : TRUE;
+      TRUE : Virtual_Light_bedroom;
+    esac;
+
+  next(Virtual_AC1) :=
+    case
+      TRUE : Virtual_AC1;
+    esac;
+
+  next(Virtual_Fan1) :=
+    case
+      sunrise = TRUE : FALSE;
+      TRUE : Virtual_Fan1;
+    esac;
+
+  next(Virtual_TV2) :=
+    case
+      movie_mode = TRUE : TRUE;
+      TRUE : Virtual_TV2;
+    esac;
+
+  next(Virtual_Fan5) :=
+    case
+      movie_mode = TRUE : low;
+      TRUE : Virtual_Fan5;
+    esac;
+
+  next(Virtual_AC3) :=
+    case
+      doors_closed = TRUE & no_motion = TRUE : FALSE;
+      TRUE : Virtual_AC3;
+    esac;
+
+  next(Virtual_Fridge1) :=
+    case
+      motion_sensor_dining = TRUE : TRUE;
+      TRUE : Virtual_Fridge1;
+    esac;
+
+  next(Virtual_AC2) :=
+    case
+      temperature > 80 : TRUE;
+      TRUE : Virtual_AC2;
+    esac;
+
+  next(Virtual_Fan4) :=
+    case
+      temperature > 85 : medium;
+      temperature > 80 : low;
+      TRUE : Virtual_Fan4;
+    esac;
+
+  next(Virtual_TV1) :=
+    case
+      no_motion = TRUE & time > 5 & Virtual_TV1 = on : muted;
+      no_motion = TRUE & time > 5 : on;
+      TRUE : Virtual_TV1;
+    esac;
+
+  next(Virtual_Fan2) :=
+    case
+      time = 22 : FALSE;
+      TRUE : Virtual_Fan2;
+    esac;
+
+  -- Room temperature indicators
+  next(room_temperature_below_70) :=
+    case
+      temperature < 70 : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  next(room_temperature_above_78) :=
+    case
+      temperature > 78 : TRUE;
+      TRUE : FALSE;
+    esac;
+
+  -- Fan5 timer
+  next(fan5_on_time) :=
+    case
+      Virtual_Fan5 = low & fan5_on_time < 60 : fan5_on_time + 1;
+      Virtual_Fan5 != low : 0;
+      TRUE : fan5_on_time;
+    esac;
+
+-- LTL Specifications
+LTLSPEC G (room_temperature_below_70 -> !Virtual_AC3);
+LTLSPEC G (!(Virtual_AC2 & room_temperature_above_78));
+LTLSPEC G (fan5_on_time < 60);
+LTLSPEC G (temperature > 85 -> Virtual_Fan4 = medium);
