@@ -1,5 +1,0 @@
-next(virtual_light_active) := case
-    motion_detected : TRUE;   -- Turn on the Virtual Light when motion is detected
-    !motion_detected : FALSE; -- Turn off the Virtual Light when no motion is detected
-    TRUE : virtual_light_active; -- Maintain current state
-esac;
