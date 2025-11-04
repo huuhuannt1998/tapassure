@@ -2,7 +2,7 @@
 
 [![Conference](https://img.shields.io/badge/SmartSP-2025-blue)](https://smartsp2025.github.io/)
 [![Paper](https://img.shields.io/badge/Paper-Accepted-success)]()
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)]()
+
 
 **TAPAssure** is a novel framework that combines Large Language Models (LLMs) with formal verification to ensure the safety and correctness of Trigger-Action Programming (TAP) rules in smart home environments. By integrating LLM-based rule generation with NuSMV model checking, TAPAssure systematically eliminates syntax errors and safety violations through iterative refinement.
 
@@ -400,9 +400,6 @@ If you use TAPAssure in your research, please cite our paper:
 }
 ```
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 👥 Authors
 
