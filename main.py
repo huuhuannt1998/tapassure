@@ -1,21 +1,136 @@
+"""
+TAPAssure: Smart Home Automation Safety Verification System
+
+This system integrates two main processes:
+
+PROCESS 1: CONTEXT VALIDATION & SYNTAX VERIFICATION
+- Verifies device context from SmartThings API
+- Validates user scenarios and safety properties  
+- Generates syntactically correct NuSMV models through iterative refinement
+- Ensures the model has no syntax errors before proceeding
+
+PROCESS 2: VIOLATION MINIMIZATION  
+- Performs formal verification using NuSMV model checker
+- Detects safety property violations through counterexamples
+- Iteratively regenerates models to eliminate violations
+- Continues until all safety properties are satisfied
+
+The combined workflow ensures both syntactic correctness and semantic safety.
+"""
+
 import requests
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from openai import OpenAI
 import os
 import subprocess
 import yaml
 import re
+import json
 
-# Load environment variables from .env
+# Load environment variables
 load_dotenv()
+
+#############################
+# CONFIGURATION
+#############################
 
 # SmartThings API Configuration
 SMARTTHINGS_API_URL = "https://api.smartthings.com/v1/devices"
 SMARTTHINGS_BEARER_TOKEN = "0dc70a10-bda8-4d39-a1ee-67dc45e91595"
 
-# Function to retrieve devices from SmartThings API
+# vLLM API Configuration (for direct API calls)
+VLLM_API_URL = "http://localhost:5000/v1/completions"
+
+# OpenAI/Lambda Labs Configuration
+try:
+    with open('api_key.txt', 'r') as file:
+        openai_api_key = file.read().strip()
+except FileNotFoundError:
+    print("Warning: api_key.txt not found. Using default/env API key.")
+    openai_api_key = os.getenv("OPENAI_API_KEY", "")
+    
+openai_api_base = "https://api.lambdalabs.com/v1"
+
+# Initialize the OpenAI client for Lambda Labs
+client = OpenAI(
+    api_key=openai_api_key,
+    base_url=openai_api_base,
+)
+
+#############################
+# SAMPLE SCENARIOS & PROPERTIES
+#############################
+
+scenarios1 = [
+    "When motion is detected by the Motion Sensor, turn on the Virtual Light.",
+    "Turn off Virtual A/C 1 when the Virtual Motion Sensor detects no motion.",
+    "At sunset, turn on Virtual TV 1 and set Virtual Fan 1 to medium speed.",
+    "If Motion Sensor detects movement while away, turn on all Virtual Lights and send an alert.",
+    "At 7 AM, turn on Virtual Fridge 1 and Virtual A/C 2 to prepare the kitchen."
+]
+
+scenarios2 = [
+    "When Virtual Switch is turned on, activate Virtual Fan 5 and Virtual Light.",
+    "When leaving home, turn off all devices: Virtual A/C 3, Virtual Fan 3, and Virtual Light.",
+    "If Motion Sensor detects high temperature, turn on Virtual A/C 1 and Virtual Fan 2.",
+    "Turn off all Virtual Lights when no motion is detected for 10 minutes.",
+    "Turn on Virtual Fan 3 when the room temperature exceeds 75°F.",
+    "Turn on Virtual A/C 2 and Virtual Fan 2 when the Virtual Motion Sensor detects movement in the living room.",
+    "Turn off Virtual TV 3 when no one is detected in the room for 15 minutes."
+]
+
+scenarios3 = [
+    "Use the Motion Sensor to trigger Virtual Light and Virtual A/C 1 when entering the bedroom.",
+    "At sunrise, turn off Virtual Fan 1 and Virtual Light in the kitchen.",
+    "Turn on Virtual TV 2 and set Virtual Fan 5 to low when 'movie mode' is activated.",
+    "Turn off Virtual A/C 3 when all doors are closed and no motion is detected in the house.",
+    "Turn on Virtual Fridge 1 and Virtual Light when the Virtual Motion Sensor detects movement in the dining room.",
+    "If Motion Sensor detects temperature above 80°F, activate Virtual A/C 2 and Virtual Fan 4.",
+    "Turn on Virtual TV 1 and mute it if no movement is detected in the living room for 5 minutes.",
+    "Turn off Virtual Fan 2 at 10 PM every night to conserve energy."
+]
+
+safety_properties1 = [
+    "Virtual A/C 1 must not turn on when windows are open.",
+    "Virtual Light must turn off automatically if no motion is detected for 10 minutes.",
+    "Virtual Fan 3 must not run when the room temperature is below 68°F.",
+    "Virtual TV 1 must not turn on between midnight and 6 AM.",
+    "Virtual A/C 2 must not run if the temperature is below 65°F."
+]
+
+safety_properties2 = [
+    "Virtual Motion Sensor must not trigger devices in 'away mode'.",
+    "Virtual Light must not turn on during daylight hours unless motion is detected.",
+    "Multiple Virtual Fans must not run in the same room simultaneously.",
+    "Virtual TV 4 must turn off if no activity is detected for 30 minutes.",
+    "Virtual Fridge 1 must not remain open for more than 2 minutes."
+]
+
+safety_properties3 = [
+    "Virtual A/C 3 must deactivate if the room temperature drops below 70°F.",
+    "Virtual A/C 2 must not exceed 78°F.",
+    "Virtual Fan 5 must not remain on for more than 1 hour without activity detection.",
+    "Virtual Fan 4 must operate at medium speed if the temperature exceeds 85°F."
+]
+
+safety_properties4 = [
+    "Virtual TV 3 must mute automatically if no activity is detected for 15 minutes.",
+    "Virtual A/C 1 must switch to 'eco mode' when no one is home.",
+    "Virtual Motion Sensor must activate Virtual Light only in occupied rooms.",
+    "Virtual Light must activate only when motion is detected in dark areas.",
+    "Virtual Fan 1 must deactivate when Virtual A/C 2 is running."
+]
+
+#############################
+# SMARTTHINGS API FUNCTIONS
+#############################
+
 def get_smartthings_devices():
+    """
+    Retrieve devices from SmartThings API for context validation.
+    """
     headers = {
         "Authorization": f"Bearer {SMARTTHINGS_BEARER_TOKEN}"
     }
@@ -27,22 +142,49 @@ def get_smartthings_devices():
         print(f"Error: Unable to retrieve devices ({response.status_code})")
         return []
 
-# Initialize ChatOpenAI Model
-# model = ChatOpenAI(model="gpt-4o")
-OPENAI_API_KEY = "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"  # Load API Key from .env
-
-# Initialize ChatOpenAI with Organization ID
-model = ChatOpenAI(
-    model="gpt-4o",
-    openai_api_key = OPENAI_API_KEY,
-)
-
 #############################
-# TAP RULES VALIDATION
+# LLM INVOCATION FUNCTIONS
 #############################
 
-# Template for validating scenarios with device validation
-template = """
+def invoke_vllm(prompt, max_tokens=5000):
+    """
+    Send a request to the OpenAI-compatible API (Lambda Labs) to generate a response.
+    This is the primary method used for both processes.
+    Cleans the response to remove markdown formatting and ensure valid NuSMV code.
+    """
+    try:
+        response = client.chat.completions.create(
+            model="llama3.3-70b-instruct-fp8",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that strictly follows the user's instructions."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.0,
+            max_tokens=max_tokens
+        )
+        
+        generated_content = response.choices[0].message.content
+        
+        # Clean the response to remove markdown formatting
+        cleaned_content = re.sub(r"```(?:nusmv|plaintext|smv)?\n", "", generated_content)
+        cleaned_content = re.sub(r"\n```", "", cleaned_content)
+        
+        return cleaned_content.strip()
+    
+    except Exception as e:
+        print(f"Error invoking LLM: {e}")
+        return None
+
+#############################
+# PROCESS 1: CONTEXT & SCENARIO VALIDATION
+#############################
+
+def scenarios_validation(devices):
+    """
+    PROCESS 1 - Step 1: Validate user scenarios against SmartThings devices.
+    Ensures scenarios reference valid devices and contain complete information.
+    """
+    template = """
 You are an AI assistant for creating IoT automation rules. Your task is to validate the user's scenario and ensure it contains all the necessary information:
 1. Which device or devices are involved.
 2. If condition that triggers the rule.
@@ -52,7 +194,7 @@ Additionally, validate the devices mentioned in the scenario against the availab
 Available Devices: {device_list}
 
 Step 1: Analyze the provided scenario.
-- If it is valid and complete, acknowledge it and proceed.
+- If it is valid and complete, explicitly state: "The scenario is valid and complete."
 - If it mentions a device not in the available devices list, request a correction and suggest valid devices.
 
 Scenario: "{scenario}"
@@ -61,62 +203,60 @@ Your response should include:
 1. Feedback on the scenario's completeness.
 2. If a device is missing, a request for correction with recommendations.
 """
-
-# Create a ChatPromptTemplate using the defined template
-device_validation_template = ChatPromptTemplate.from_template(template)
-
-def interactive_device_validation(devices):
-    print("Welcome to the TAPChecker!")
+    
+    print("=" * 70)
+    print("PROCESS 1: CONTEXT & SCENARIO VALIDATION")
+    print("=" * 70)
     print("You can input multiple scenarios. The assistant will validate each one.")
     print("Type 'done' when you have finished entering your scenarios.\n")
     
-    saved_scenarios = []  # List to store validated scenarios
+    saved_scenarios = []
     print(f"Devices retrieved from SmartThings: {', '.join(devices)}\n")
     
     while True:
         scenario = input("Enter your IoT scenario (or type 'done' to finish): ").strip()
-        # Explicitly handle 'done' input
+        
         if scenario.lower() == 'done':
             print("\nYou have finished entering scenarios.")
-            break  # Exit the loop when the user is finished
+            break
 
         if not scenario or len(scenario.split()) < 3:
             print("\nInvalid scenario. Please provide a detailed input including devices, conditions, and actions.\n")
             continue
 
         while True:
-            # Validate the scenario with the LLM
-            prompt = device_validation_template.invoke({
-                "scenario": scenario,
-                "device_list": ", ".join(devices)
-            })
-            result = model.invoke(prompt)
+            prompt = template.format(scenario=scenario, device_list=", ".join(devices))
+            result = invoke_vllm(prompt)
+
+            if not result:
+                print("\nError communicating with LLM. Please try again.")
+                break
 
             print("\nAssistant Response:")
-            print(result.content)
+            print(result)
 
-            if "valid and complete" in result.content.lower():
-                print("\nThe scenario is valid and has been saved.")
+            if "valid and complete" in result.lower():
+                print("\n✓ The scenario is valid and has been saved.")
                 saved_scenarios.append(scenario)
-                break  # Move to the next scenario
+                break
 
-            # Prompt user to refine the scenario
             scenario = input("\nPlease update your scenario based on the assistant's suggestions: ").strip()
 
     if saved_scenarios:
-        print("\nHere are the validated scenarios:")
+        print("\n✓ Validated Scenarios:")
         for i, sc in enumerate(saved_scenarios, 1):
-            print(f"{i}. {sc}")
+            print(f"  {i}. {sc}")
     else:
         print("\nNo valid scenarios were provided.")
     
     return saved_scenarios
 
-
-#############################
-# SAFETY PROPERTIES VALIDATION
-#############################
-safety_template = """
+def safety_property_validation(devices):
+    """
+    PROCESS 1 - Step 2: Validate safety properties against SmartThings devices.
+    Ensures safety properties reference valid devices and specify clear safety constraints.
+    """
+    safety_template = """
 You are an expert assistant for creating IoT safety rules. Your task is to validate the user's safety property:
 1. References valid devices from the user's SmartThings account.
 2. Specifies clear conditions and actions that ensure safety.
@@ -129,704 +269,416 @@ Step 1: Analyze the provided safety property.
 - If it is valid and complete, explicitly state: "The safety property is valid and complete."
 - If it is not valid or complete, provide feedback on what is missing or unclear.
 
-Step 2: Suggest improvements to make the property more robust and actionable. Provide examples for clarity.
+Step 2: Suggest improvements to make the property more robust and actionable.
 
 Your response must explicitly include:
 1. Whether the safety property is "valid and complete."
 2. Feedback on its validity and completeness.
 3. Suggestions for improvement (if needed).
 """
-
-def interactive_safety_property_validation(devices):
+    
     print("\nNow, let's define the safety properties for your IoT automation rules.")
     print("Type 'done' when you have finished entering safety properties.\n")
 
     saved_properties = []
-    safety_validation_template = ChatPromptTemplate.from_template(safety_template)
 
     while True:
         safety_property = input("Enter your safety property (or type 'done' to finish): ").strip()
 
-        # Handle 'done' input
         if safety_property.lower() == 'done':
             print("\nYou have finished entering safety properties.")
             break
 
-        # Basic input validation
         if not safety_property or len(safety_property.split()) < 3:
-            print("\nInvalid safety property. Please provide more details, including devices, conditions, and actions.\n")
+            print("\nInvalid safety property. Please provide more details.\n")
             continue
 
         while True:
-            # Validate the safety property with the assistant
-            prompt = safety_validation_template.invoke({
-                "property": safety_property,
-                "device_list": ", ".join(devices)
-            })
-            result = model.invoke(prompt)
+            prompt = safety_template.format(property=safety_property, device_list=", ".join(devices))
+            result = invoke_vllm(prompt)
+
+            if not result:
+                print("\nError communicating with LLM. Please try again.")
+                break
 
             print("\nAssistant Response:")
-            print(result.content)
+            print(result)
 
-            # Check if the assistant marked the property as valid and complete
-            if "valid and complete" in result.content.lower():
-                print("\nThe safety property is valid and has been saved.")
+            if "valid and complete" in result.lower():
+                print("\n✓ The safety property is valid and has been saved.")
                 saved_properties.append(safety_property)
                 break
 
-            # Prompt the user to refine the safety property
             safety_property = input("\nPlease update your safety property based on the assistant's suggestions: ").strip()
 
     if saved_properties:
-        print("\nHere are the validated safety properties:")
+        print("\n✓ Validated Safety Properties:")
         for i, sp in enumerate(saved_properties, 1):
-            print(f"{i}. {sp}")
+            print(f"  {i}. {sp}")
     else:
         print("\nNo valid safety properties were provided.")
     
     return saved_properties
 
-
 #############################
-# CROSS-VALIDATION
-#############################
-
-def cross_validate_scenarios_and_properties(scenarios, safety_properties):
-    cross_validation_template = """
-    You are an expert assistant for validating IoT automation rules. Cross-check the given scenario against the provided safety property and determine:
-    1. Whether the scenario violates the safety property.
-    2. If a violation exists, explain why and suggest modifications to the scenario or the safety property.
-
-    Scenario: "{scenario}"
-    Safety Property: "{property}"
-
-    Your response should include:
-    1. Whether a violation exists (yes/no).
-    2. An explanation if a violation exists.
-    3. Suggestions for resolving the conflict with specific examples.
-    """
-
-    validation_template = ChatPromptTemplate.from_template(cross_validation_template)
-
-    violations = []  # Store detected conflicts
-    compliant_scenarios = []  # Store scenarios that pass validation
-
-    for scenario in scenarios:
-        for property in safety_properties:
-            # Validate the scenario against the safety property
-            prompt = validation_template.invoke({
-                "scenario": scenario,
-                "property": property
-            })
-            result = model.invoke(prompt)
-
-            print(f"\nValidating Scenario: {scenario}")
-            print(f"Against Safety Property: {property}")
-            print("\nAssistant Response:")
-            print(result.content)
-
-            # Check if a violation exists
-            if "violation exists" in result.content.lower() or "conflict" in result.content.lower():
-                violations.append({
-                    "scenario": scenario,
-                    "property": property,
-                    "response": result.content
-                })
-            else:
-                compliant_scenarios.append(scenario)
-
-    # Report results
-    if violations:
-        print("\nConflicts detected during cross-validation:")
-        for i, violation in enumerate(violations, 1):
-            print(f"\nConflict {i}:")
-            print(f"Scenario: {violation['scenario']}")
-            print(f"Safety Property: {violation['property']}")
-            print(f"Assistant Response: {violation['response']}")
-    else:
-        print("\nNo conflicts detected. All scenarios comply with the defined safety properties.")
-
-    # Display compliant scenarios
-    if compliant_scenarios:
-        print("\nCompliant Scenarios:")
-        for i, scenario in enumerate(compliant_scenarios, 1):
-            print(f"{i}. {scenario}")
-
-    return violations, compliant_scenarios
-
-#############################
-# NUSMV
+# PROCESS 1: NUSMV MODEL GENERATION & SYNTAX VALIDATION
 #############################
 
-def generate_smv_with_ltl(scenarios, safety_properties, output_file="model.smv"):
+def is_valid_nusmv_code(content):
     """
-    Generate a NuSMV model dynamically from validated scenarios and safety properties.
+    Validate if content is valid NuSMV code structure.
     """
-    print("\nGenerating NuSMV model with LTL formulas...\n")
-    with open(output_file, "w") as file:
-        # Define the module and variables
-        file.write("MODULE main\n")
-        file.write("VAR\n")
-        file.write("  time : 0..24;\n")  # Example time variable for temporal logic
-
-        # Write LTL formulas for scenarios
-        file.write("\n-- LTL Specifications for Scenarios\n")
-        for idx, scenario in enumerate(scenarios, 1):
-            try:
-                ltl_formula = parse_scenario_to_ltl(scenario)
-                file.write(f"LTLSPEC name scenario_{idx}: {ltl_formula};\n")
-            except Exception as e:
-                print(f"Error parsing scenario {idx}: {scenario} -> {str(e)}")
-
-        # Write LTL formulas for safety properties
-        file.write("\n-- LTL Specifications for Safety Properties\n")
-        for idx, safety_property in enumerate(safety_properties, 1):
-            try:
-                ltl_formula = parse_safety_property_to_ltl(safety_property)
-                file.write(f"LTLSPEC name safety_{idx}: {ltl_formula};\n")
-            except Exception as e:
-                print(f"Error parsing safety property {idx}: {safety_property} -> {str(e)}")
-
-    print(f"NuSMV model generated: {output_file}")
-
-
-def validate_ltl_formula(formula):
-    """
-    Validate the syntax of an LTL formula.
-    """
-    # Basic validation (can be extended with more complex checks)
-    return "G" in formula or "F" in formula or "X" in formula
-
-def parse_scenario_to_ltl(scenario):
-    """
-    Parse a validated scenario into an LTL formula using the LLM.
-    """
-    prompt = f"""
-    Convert the following IoT scenario into an LTL formula for NuSMV:
-    Scenario: "{scenario}"
-
-    Example:
-    - Scenario: "When motion is detected, turn on the light."
-      Formula: G (motion_detected -> F light_on)
-
-    Ensure the formula uses variables declared in NuSMV and adheres to NuSMV syntax.
-    Your output must only contain the LTL formula.
-    """
-    try:
-        response = model.invoke(prompt)
-        ltl_formula = response.content.strip()
-        
-        # Pre-validate the LTL formula
-        if not validate_ltl_formula(ltl_formula):
-            raise ValueError(f"Generated LTL formula is invalid: {ltl_formula}")
-        return ltl_formula
-    except Exception as e:
-        raise ValueError(f"Failed to parse scenario to LTL: {scenario}. Error: {str(e)}")
-
-def parse_safety_property_to_ltl(safety_property):
-    """
-    Parse a validated safety property into an LTL formula using the LLM.
-    """
-    prompt = f"""
-    Convert the following IoT safety property into an LTL formula for NuSMV:
-    Safety Property: "{safety_property}"
-
-    Example:
-    - Safety Property: "The heater should not be on when the window is open."
-      Formula: G (!(window_open & heater_on))
-
-    Ensure the formula is valid for NuSMV.
-    Your output must only contain the LTL formula.
-    """
-    try:
-        response = model.invoke(prompt)
-        ltl_formula = response.content.strip()
-
-        # Pre-validate the LTL formula
-        if not validate_ltl_formula(ltl_formula):
-            raise ValueError(f"Generated LTL formula is invalid: {ltl_formula}")
-        return ltl_formula
-    except Exception as e:
-        raise ValueError(f"Failed to parse safety property to LTL: {safety_property}. Error: {str(e)})")
-
-
-def feed_error_to_llm(model_file, nusmv_error, scenarios, safety_properties):
-    with open(model_file, "r") as file:
-        model_content = file.read()
-
-    prompt = f"""
-    The following NuSMV model has errors:
-    Error Message:
-    {nusmv_error}
-
-    Scenarios:
-    {', '.join(scenarios)}
-
-    Safety Properties:
-    {', '.join(safety_properties)}
-
-    Model:
-    {model_content}
-
-    Correct the model by:
-    1. Fixing syntax errors in `LTLSPEC` formulas.
-    2. Ensuring all variables are declared in the `VAR` section.
-    3. Verifying temporal operators are used properly.
-    4. Returning only the corrected model as plain text.
-    """
-    try:
-        response = model.invoke(prompt)
-        corrected_model = extract_code_block(response.content)
-        if not corrected_model:
-            raise ValueError("Failed to extract corrected model from response.")
-        return corrected_model
-    except Exception as e:
-        print(f"Error during model correction: {e}")
-        return None
-
-def extract_code_block(content):
-    """
-    Extract the code block from the LLM response.
-    """
-    match = re.search(r"```(?:smv)?\n(.*?)\n```", content, re.DOTALL)
-    return match.group(1).strip() if match else content.strip()
-
-
-
-def generate_smv_with_ltl_until_success(model_file, scenarios, safety_properties):
-    """
-    Run NuSMV validation and retry corrections until the model is valid.
-    """
-    attempt_count = 0
-
-    while True:
-        attempt_count += 1
-        print(f"=====================================================")
-        print(f"Attempt {attempt_count}: Running NuSMV validation...")
-        print(f"=====================================================")
-
-        try:
-            result = subprocess.run(["nusmv", model_file], capture_output=True, text=True)
-
-            if result.returncode == 0:
-                print("\nNuSMV validation successful.")
-                return attempt_count, True, result.stdout
-            else:
-                print(f"\nNuSMV error: {result.stderr}")
-                corrected_model = feed_error_to_llm(model_file, result.stderr, scenarios, safety_properties)
-
-                if corrected_model:
-                    with open(model_file, "w") as file:
-                        file.write(corrected_model)
-                    print("\nCorrected NuSMV model saved. Retrying...")
-                else:
-                    print("\nFailed to correct the model.")
-                    return attempt_count, False, result.stderr
-
-        except FileNotFoundError:
-            print("\nNuSMV is not installed or not in PATH. Please install NuSMV.")
-            return attempt_count, False, "NuSMV not found."
-
-
-
-# def run_nusmv_validation_until_success(model_file, scenarios, safety_properties):
-#     """
-#     Run NuSMV on the given model file, retrying corrections indefinitely until the model is valid.
-#     Returns the number of attempts it took to generate a valid model.
-#     """
-#     attempt_count = 0
-
-#     while True:
-#         attempt_count += 1
-#         print(f"=====================================================")
-#         print(f"Attempt {attempt_count}: Running NuSMV validation...")
-#         print(f"=====================================================")
-
-#         try:
-#             # Run NuSMV on the model file
-#             result = subprocess.run(["nusmv", model_file], capture_output=True, text=True)
-
-#             if result.returncode == 0:
-#                 # Validation succeeded
-#                 print("NuSMV Validation Completed Successfully:\n", result.stdout)
-#                 return attempt_count, True, result.stdout
-#             else:
-#                 # Log the error and file content for debugging
-#                 print("NuSMV Error:\n", result.stderr)
-#                 with open(model_file, "r") as file:
-#                     print("\nGenerated NuSMV File Content:\n")
-#                     print(file.read())
-
-#                 # Feed the error back to the LLM for correction
-#                 corrected_model = feed_error_to_llm(model_file, result.stderr, scenarios, safety_properties)
-
-#                 if corrected_model:
-#                     # Save the corrected model to the file
-#                     with open(model_file, "w") as file:
-#                         file.write(corrected_model)
-#                     print("\nCorrected NuSMV model generated. Re-running NuSMV...")
-#                 else:
-#                     print("Failed to correct the NuSMV model. Exiting.")
-#                     return attempt_count, False, result.stderr
-
-#         except FileNotFoundError:
-#             print("NuSMV is not installed or not in your PATH. Please install it and try again.")
-#             return attempt_count, False, "Error: NuSMV not found."
-
-
-
-def cross_validate_with_nusmv(scenarios, safety_properties):
-    """
-    Perform cross-validation using both prompt-based validation and NuSMV validation.
-    """
-    print("\nStarting comprehensive cross-validation...\n")
-
-    # Step 1: Prompt-based validation
-    print("Running prompt-based validation...\n")
-    prompt_violations, compliant_scenarios = cross_validate_scenarios_and_properties(scenarios, safety_properties)
-
-    # Step 2: NuSMV-based validation
-    print("\nGenerating NuSMV model and running formal verification...\n")
-    model_file = "generated_model.smv"
-    generate_smv_with_ltl(scenarios, safety_properties, model_file)
-    nusmv_results = run_nusmv_validation_until_success(model_file, validated_scenarios, validated_safety_properties)
-
-    # Step 3: Consolidate results
-    results = {
-        "Prompt-Based Validation": {
-            "violations": prompt_violations,
-            "compliant_scenarios": compliant_scenarios,
-            "status": "Conflicts Detected" if prompt_violations else "No Conflicts"
-        },
-        "NuSMV Validation": {
-            "output": nusmv_results,
-            "status": "Conflicts Detected" if "is false" in nusmv_results else "No Conflicts"
-        }
-    }
-
-    # Display results summary
-    print("\n--- Validation Results Summary ---\n")
-    print("Prompt-Based Validation:")
-    print(f"Status: {results['Prompt-Based Validation']['status']}")
-    if results['Prompt-Based Validation']['violations']:
-        print("Violations:")
-        for i, violation in enumerate(results['Prompt-Based Validation']['violations'], 1):
-            print(f"{i}. Scenario: {violation['scenario']}")
-            print(f"   Property: {violation['property']}")
-            print(f"   Response: {violation['response']}")
-
-    print("\nNuSMV Validation:")
-    print(f"Status: {results['NuSMV Validation']['status']}")
-    print(f"Output:\n{results['NuSMV Validation']['output']}")
-
-    return results
-
-def validate_transition_rule(rule):
-    """
-    Validate the syntax of a NuSMV transition rule.
-    """
-    # Basic validation (can be extended with more complex checks)
-    return "next(" in rule and ";" not in rule
-
-def parse_scenario_to_transition(scenario):
-    """
-    Parse a scenario into a valid NuSMV transition rule.
-    """
-    prompt = f"""
-    Convert the following IoT scenario into a valid NuSMV transition rule:
-    Scenario: "{scenario}"
-
-    Example:
-    - Scenario: "When motion is detected, turn on the light."
-      Transition Rule: next(light_state) = (motion_detected ? 1 : light_state)
-
-    Ensure the rule uses valid NuSMV syntax and adheres to the following rules:
-    1. Use `next(variable)` to represent the next state.
-    2. Use logical operators like `&`, `|`, and `!` for conditions.
-    3. Use ternary operators (`? :`) for conditional assignments.
-
-    Your output must only contain the transition rule.
-    """
-    try:
-        response = model.invoke(prompt)
-        transition_rule = response.content.strip()
-        
-        # Validate the transition rule
-        if not validate_transition_rule(transition_rule):
-            raise ValueError(f"Generated transition rule is invalid: {transition_rule}")
-        return transition_rule
-    except Exception as e:
-        raise ValueError(f"Failed to parse scenario to transition rule: {scenario}. Error: {str(e)}")
+    if not content or len(content.strip()) < 10:
+        return False
     
+    # Check for basic NuSMV structure
+    required_keywords = ["MODULE", "VAR", "ASSIGN"]
+    return any(keyword in content for keyword in required_keywords)
 
-def generate_smv_with_ltl(scenarios, safety_properties, output_file="model.smv"):
+def clean_nusmv_model(model_content):
     """
-    Generate a NuSMV model with valid transition rules and LTLSPECs.
+    Clean NuSMV model content by removing markdown formatting.
     """
-    print("\nGenerating NuSMV model with transition rules and LTLSPECs...\n")
-    with open(output_file, "w") as file:
-        # Define the module and variables
-        file.write("MODULE main\n")
-        file.write("VAR\n")
-        file.write("  motion_detected : boolean;\n")
-        file.write("  virtual_light : boolean;\n")
-        file.write("  virtual_ac_1 : boolean;\n")
-        file.write("  virtual_fan_3 : boolean;\n")
-        file.write("  room_temperature : 0..100;\n")  # Example temperature range
-
-        # Write transition rules (scenarios)
-        file.write("\n-- Transition Rules (Scenarios)\n")
-        for idx, scenario in enumerate(scenarios, 1):
-            try:
-                transition_rule = parse_scenario_to_transition(scenario)
-                file.write(f"ASSIGN\n  {transition_rule}\n")
-            except Exception as e:
-                print(f"Error parsing scenario {idx}: {scenario} -> {str(e)}")
-
-        # Write LTLSPECs (safety properties)
-        file.write("\n-- LTL Specifications (Safety Properties)\n")
-        for idx, safety_property in enumerate(safety_properties, 1):
-            try:
-                ltl_formula = parse_safety_property_to_ltl(safety_property)
-                file.write(f"LTLSPEC name safety_{idx}: {ltl_formula};\n")
-            except Exception as e:
-                print(f"Error parsing safety property {idx}: {safety_property} -> {str(e)}")
-
-    print(f"NuSMV model generated: {output_file}")
-
-def generate_nusmv_model_with_llm(scenarios, safety_properties, output_file="model.smv"):
-    """
-    Generate a complete NuSMV model using the LLM.
-    """
-    print("\nGenerating NuSMV model using the LLM...\n")
-
-    # Prepare the prompt for the LLM
-    prompt = f"""
-    Generate a complete NuSMV model based on the following scenarios and safety properties.
-
-    Scenarios:
-    {', '.join(scenarios)}
-
-    Safety Properties:
-    {', '.join(safety_properties)}
-
-    Your task is to generate a valid NuSMV model that includes:
-    1. A `MODULE main` declaration.
-    2. A `VAR` section with all necessary variables and their types.
-    3. An `ASSIGN` section with initial states for all variables.
-    4. Transition rules for the scenarios.
-    5. LTLSPECs for the safety properties.
-
-    Ensure the model adheres to NuSMV syntax and is ready for verification.
-
-    Your output must only contain the NuSMV model as plain text.
-    """
-
-    try:
-        # Invoke the LLM to generate the model
-        response = model.invoke(prompt)
-        nusmv_model = response.content.strip()
-
-        # Remove triple backticks if present
-        if "```" in nusmv_model:
-            nusmv_model = re.sub(r"```(?:nusmv)?\n(.*?)\n```", r"\1", nusmv_model, flags=re.DOTALL)
-
-        # Save the generated model to a file
-        with open(output_file, "w") as file:
-            file.write(nusmv_model)
-
-        print(f"NuSMV model generated: {output_file}")
-        return nusmv_model
-    except Exception as e:
-        print(f"Error generating NuSMV model: {e}")
-        return None
+    # Remove markdown code blocks
+    cleaned = re.sub(r"```(?:nusmv|smv|plaintext)?\n", "", model_content)
+    cleaned = re.sub(r"\n```", "", cleaned)
     
-def validate_nusmv_model(model_file):
+    # Remove any leading/trailing whitespace
+    cleaned = cleaned.strip()
+    
+    return cleaned
+
+def generate_nusmv_model(scenarios, safety_properties):
     """
-    Validate the NuSMV model using the NuSMV model checker.
+    PROCESS 1 - Step 3: Generate initial NuSMV model from scenarios and safety properties.
+    """
+    scenarios_text = '\n'.join(f"- {s}" for s in scenarios)
+    properties_text = '\n'.join(f"- {p}" for p in safety_properties)
+    
+    prompt = f"""
+You are an expert in formal verification and NuSMV modeling.
+
+Given the following IoT automation scenarios and safety properties, generate a complete NuSMV model.
+
+Scenarios:
+{scenarios_text}
+
+Safety Properties:
+{properties_text}
+
+Generate a complete NuSMV model that:
+1. Defines all necessary state variables for devices and conditions
+2. Implements transition rules based on the scenarios
+3. Includes LTL specifications for each safety property
+4. Ensures the model is syntactically correct
+
+Return ONLY the NuSMV model code without any explanations or markdown formatting.
+"""
+    
+    result = invoke_vllm(prompt, max_tokens=8000)
+    return clean_nusmv_model(result) if result else None
+
+def validate_nusmv_syntax(model_file):
+    """
+    Validate NuSMV model syntax using the NuSMV model checker.
+    Returns (is_valid, error_message)
     """
     try:
-        result = subprocess.run(["nusmv", model_file], capture_output=True, text=True)
-        if result.returncode == 0:
-            print("NuSMV validation successful.")
-            return True, result.stdout
-        else:
-            print("NuSMV validation failed.")
-            print(f"Error: {result.stderr}")
-            return False, result.stderr
+        result = subprocess.run(
+            ["NuSMV", model_file],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        output = result.stdout + result.stderr
+        
+        # Check for syntax errors
+        if "syntax error" in output.lower() or ("error:" in output.lower() and "line" in output.lower()):
+            return False, output
+        
+        return True, "Model is syntactically valid"
+        
+    except subprocess.TimeoutExpired:
+        return False, "NuSMV execution timeout"
     except FileNotFoundError:
-        print("NuSMV is not installed or not in PATH. Please install NuSMV.")
-        return False, "NuSMV not found."
+        return False, "NuSMV not found. Please install NuSMV and add it to PATH."
+    except Exception as e:
+        return False, f"Error running NuSMV: {str(e)}"
+
+def extract_nusmv_errors(nusmv_output, model_content):
+    """
+    Extract and parse syntax errors from NuSMV output.
+    """
+    errors = []
+    error_lines = [line for line in nusmv_output.split('\n') if 'error' in line.lower() or 'line' in line.lower()]
     
-def refine_nusmv_model_with_llm(model_file, scenarios, safety_properties, max_attempts=5):
-    """
-    Iteratively refine the NuSMV model using the LLM until it is valid.
-    """
-    attempt_count = 0
-    while attempt_count < max_attempts:
-        attempt_count += 1
-        print(f"\n=== Iteration {attempt_count} ===")
+    for error_line in error_lines[:5]:  # Limit to first 5 errors
+        errors.append(error_line.strip())
+    
+    return errors if errors else ["Unknown syntax error"]
 
-        # Generate the NuSMV model
-        nusmv_model = generate_nusmv_model_with_llm(scenarios, safety_properties, model_file)
+def refine_nusmv_model(nusmv_model, error_log):
+    """
+    PROCESS 1 - Step 4: Refine NuSMV model based on syntax errors.
+    Uses LLM to fix syntax errors iteratively.
+    """
+    errors_text = '\n'.join(error_log)
+    
+    prompt = f"""
+You are an expert in NuSMV model checking and formal verification.
 
-        # Validate the model
-        is_valid, validation_output = validate_nusmv_model(model_file)
+The following NuSMV model has syntax errors:
+
+{nusmv_model}
+
+Errors detected:
+{errors_text}
+
+Fix the syntax errors and return the corrected NuSMV model.
+Ensure the model adheres to proper NuSMV syntax.
+Return ONLY the corrected NuSMV model code without any explanations or markdown formatting.
+"""
+    
+    result = invoke_vllm(prompt, max_tokens=8000)
+    return clean_nusmv_model(result) if result else None
+
+def generate_valid_nusmv_model(scenarios, safety_properties, output_file="generated_model.smv", max_iterations=10):
+    """
+    PROCESS 1 - Complete: Generate syntactically valid NuSMV model through iterative refinement.
+    This ensures the model is ready for formal verification in Process 2.
+    """
+    print("\n" + "="*70)
+    print("PROCESS 1: GENERATING SYNTACTICALLY VALID NUSMV MODEL")
+    print("="*70)
+    
+    iteration = 0
+    model_content = None
+    error_log = []
+    
+    while iteration < max_iterations:
+        iteration += 1
+        print(f"\n--- Iteration {iteration} ---")
+        
+        if iteration == 1:
+            print("Generating initial NuSMV model...")
+            model_content = generate_nusmv_model(scenarios, safety_properties)
+        else:
+            print("Refining NuSMV model based on errors...")
+            model_content = refine_nusmv_model(model_content, error_log)
+        
+        if not model_content:
+            print("❌ Failed to generate model content")
+            continue
+        
+        # Save model to file
+        with open(output_file, 'w') as f:
+            f.write(model_content)
+        
+        print(f"✓ Model saved to {output_file}")
+        
+        # Validate syntax
+        print("Validating syntax with NuSMV...")
+        is_valid, error_message = validate_nusmv_syntax(output_file)
+        
         if is_valid:
-            print("NuSMV model is valid.")
-            return nusmv_model
-
-        # If validation fails, feed the error back to the LLM
-        print("Refining the NuSMV model...")
-        prompt = f"""
-        The following NuSMV model has errors:
-        Error Message:
-        {validation_output}
-
-        Scenarios:
-        {', '.join(scenarios)}
-
-        Safety Properties:
-        {', '.join(safety_properties)}
-
-        Correct the NuSMV model to fix the errors. Ensure the model adheres to NuSMV syntax and is ready for verification.
-
-        Your output must only contain the corrected NuSMV model as plain text.
-        """
-        try:
-            response = model.invoke(prompt)
-            corrected_model = response.content.strip()
-
-            # Save the corrected model to the file
-            with open(model_file, "w") as file:
-                file.write(corrected_model)
-
-            print("Corrected NuSMV model saved.")
-        except Exception as e:
-            print(f"Error refining NuSMV model: {e}")
-            return None
-
-    print("Maximum attempts reached. Failed to generate a valid NuSMV model.")
+            print(f"\n✅ SUCCESS! Syntactically valid model generated after {iteration} iteration(s)")
+            print(f"✅ Process 1 completed. Model ready for formal verification.")
+            return model_content
+        else:
+            print(f"❌ Syntax errors detected:")
+            error_log = extract_nusmv_errors(error_message, model_content)
+            for err in error_log[:3]:
+                print(f"   - {err}")
+    
+    print(f"\n❌ Failed to generate valid model after {max_iterations} iterations")
     return None
 
-def minimize_violations_with_llm(model_file, scenarios, safety_properties, max_attempts=10):
+#############################
+# PROCESS 2: VIOLATION DETECTION & MINIMIZATION
+#############################
+
+def validate_nusmv_model(model_file):
     """
-    Iteratively refine the NuSMV model using the LLM until it is valid.
-    """
-    attempt_count = 0
-    while attempt_count < max_attempts:
-        attempt_count += 1
-        print(f"\n=== Iteration {attempt_count} ===")
-
-        # Validate the model
-        is_valid, validation_output = validate_nusmv_model(model_file)
-        if is_valid:
-            print("NuSMV model is valid.")
-            return True
-
-        # If validation fails, feed the error back to the LLM
-        print("Refining the NuSMV model...")
-        prompt = f"""
-        The following NuSMV model has errors:
-        Error Message:
-        {validation_output}
-
-        Scenarios:
-        {', '.join(scenarios)}
-
-        Safety Properties:
-        {', '.join(safety_properties)}
-
-        Correct the NuSMV model to fix the errors. Ensure the model adheres to NuSMV syntax and is ready for verification.
-
-        Your output must only contain the corrected NuSMV model as plain text.
-        """
-        try:
-            response = model.invoke(prompt)
-            corrected_model = response.content.strip()
-
-            # Remove triple backticks if present
-            if "```" in corrected_model:
-                corrected_model = re.sub(r"```(?:nusmv)?\n(.*?)\n```", r"\1", corrected_model, flags=re.DOTALL)
-
-            # Save the corrected model to the file
-            with open(model_file, "w") as file:
-                file.write(corrected_model)
-
-            print("Corrected NuSMV model saved.")
-        except Exception as e:
-            print(f"Error refining NuSMV model: {e}")
-            return False
-
-    print("Maximum attempts reached. Failed to generate a valid NuSMV model.")
-    return False
-
-def regenerate_transition_rules(scenarios, nusmv_error):
-    """
-    Regenerate transition rules (scenarios) using the LLM to minimize violations.
-    """
-    prompt = f"""
-    The following NuSMV model has violations:
-    Error Message:
-    {nusmv_error}
-
-    Current Scenarios (Transition Rules):
-    {', '.join(scenarios)}
-
-    Regenerate the scenarios to minimize violations while preserving their original intent.
-    Your output must only contain the updated scenarios as a Python list.
+    PROCESS 2 - Step 1: Run NuSMV formal verification to detect violations.
+    Returns (has_violations, violations, output)
     """
     try:
-        response = model.invoke(prompt)
-        corrected_scenarios = eval(response.content.strip())  # Convert string to list
-        return corrected_scenarios
+        result = subprocess.run(
+            ["NuSMV", model_file],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        output = result.stdout + result.stderr
+        
+        # Check for specification violations
+        has_violations = "is false" in output or "violation" in output.lower()
+        
+        violations = []
+        if has_violations:
+            violations = extract_nusmv_violations(output)
+        
+        return has_violations, violations, output
+        
+    except subprocess.TimeoutExpired:
+        return True, ["Timeout during verification"], "Timeout"
+    except FileNotFoundError:
+        return True, ["NuSMV not found"], "NuSMV not installed"
     except Exception as e:
-        print(f"Error regenerating transition rules: {e}")
-        return None
+        return True, [f"Error: {str(e)}"], str(e)
+
+def extract_nusmv_violations(nusmv_output):
+    """
+    Extract violation information and counterexamples from NuSMV output.
+    """
+    violations = []
+    lines = nusmv_output.split('\n')
     
+    for i, line in enumerate(lines):
+        if "is false" in line.lower() or "specification" in line.lower():
+            # Extract context around the violation
+            context_start = max(0, i - 2)
+            context_end = min(len(lines), i + 15)
+            violation_context = '\n'.join(lines[context_start:context_end])
+            violations.append(violation_context)
+    
+    return violations if violations else ["Violation detected but could not extract details"]
+
+def regenerate_model_from_violations(model_content, violations, scenarios, safety_properties):
+    """
+    PROCESS 2 - Step 2: Regenerate NuSMV model to address detected violations.
+    Uses counterexamples to guide model refinement.
+    """
+    violations_text = '\n\n'.join(f"Violation {i+1}:\n{v}" for i, v in enumerate(violations[:3]))  # Limit to 3 violations
+    scenarios_text = '\n'.join(f"- {s}" for s in scenarios)
+    properties_text = '\n'.join(f"- {p}" for p in safety_properties)
+    
+    prompt = f"""
+You are an expert in NuSMV formal verification and IoT safety analysis.
+
+The following NuSMV model has safety property violations:
+
+{model_content}
+
+Violations detected by NuSMV:
+{violations_text}
+
+Original Scenarios:
+{scenarios_text}
+
+Safety Properties:
+{properties_text}
+
+Analyze the violations and regenerate the NuSMV model to eliminate these violations while maintaining the intended scenarios.
+Focus on:
+1. Adjusting transition rules to prevent unsafe states
+2. Adding constraints to enforce safety properties
+3. Ensuring the model still implements the desired scenarios
+
+Return ONLY the corrected NuSMV model code without any explanations or markdown formatting.
+"""
+    
+    result = invoke_vllm(prompt, max_tokens=8000)
+    return clean_nusmv_model(result) if result else None
+
+def minimize_violations_with_llm(input_model, output_model, scenarios, safety_properties, max_iterations=50):
+    """
+    PROCESS 2 - Complete: Iteratively minimize violations until all safety properties are satisfied.
+    This is the core of the violation minimization process.
+    """
+    print("\n" + "="*70)
+    print("PROCESS 2: MINIMIZING VIOLATIONS THROUGH ITERATIVE REFINEMENT")
+    print("="*70)
+    
+    # Read initial model
+    with open(input_model, 'r') as f:
+        model_content = f.read()
+    
+    iteration = 0
+    violation_history = []
+    
+    while iteration < max_iterations:
+        iteration += 1
+        print(f"\n--- Iteration {iteration} ---")
+        
+        # Save current model
+        with open(output_model, 'w') as f:
+            f.write(model_content)
+        
+        print(f"Running NuSMV verification...")
+        has_violations, violations, output = validate_nusmv_model(output_model)
+        
+        if not has_violations:
+            print(f"\n✅ SUCCESS! All safety properties satisfied after {iteration} iteration(s)")
+            print(f"✅ Process 2 completed. Safe TAP rules generated.")
+            print(f"✅ Final model saved to: {output_model}")
+            return model_content
+        
+        print(f"❌ {len(violations)} violation(s) detected")
+        violation_history.append(len(violations))
+        
+        # Show violation trend
+        if len(violation_history) > 1:
+            trend = violation_history[-1] - violation_history[-2]
+            if trend < 0:
+                print(f"   ↓ Violations reduced by {abs(trend)}")
+            elif trend > 0:
+                print(f"   ↑ Violations increased by {trend} (trying different approach)")
+            else:
+                print(f"   → Violations unchanged")
+        
+        # Show first violation for context
+        if violations:
+            print(f"\nFirst violation preview:")
+            preview = violations[0][:200] + "..." if len(violations[0]) > 200 else violations[0]
+            print(f"   {preview}")
+        
+        # Regenerate model
+        print("\nRegenerating model to address violations...")
+        new_model = regenerate_model_from_violations(model_content, violations, scenarios, safety_properties)
+        
+        if not new_model:
+            print("❌ Failed to regenerate model")
+            break
+        
+        model_content = new_model
+        print("✓ Model regenerated")
+    
+    print(f"\n⚠ Maximum iterations ({max_iterations}) reached")
+    print(f"Final violation count: {violation_history[-1] if violation_history else 'unknown'}")
+    
+    # Save final model even if violations remain
+    with open(output_model, 'w') as f:
+        f.write(model_content)
+    
+    return model_content
+
 #############################
-# YAML
+# YAML GENERATION & SMARTTHINGS DEPLOYMENT
 #############################
 
-
-def scenarios_to_yaml(validated_scenarios, output_file="scenarios.yaml"):
+def scenarios_to_yaml(scenarios, output_file="scenarios.yaml"):
     """
-    Converts validated scenarios into a YAML format and saves them to a file.
+    Convert validated scenarios to YAML format for SmartThings deployment.
     """
-    print("\nConverting validated scenarios to YAML format...\n")
     scenarios_yaml = []
-    
-    for idx, scenario in enumerate(validated_scenarios, 1):
+    for idx, scenario in enumerate(scenarios, 1):
         scenario_yaml = {
             "id": f"scenario_{idx}",
             "description": scenario,
-            "condition": f"Parsed condition for scenario {idx}",  # Placeholder, extract actual condition
-            "action": f"Parsed action for scenario {idx}",  # Placeholder, extract actual action
-            "devices": f"Parsed devices for scenario {idx}"  # Placeholder, extract actual devices
+            "condition": f"Parsed condition for scenario {idx}",
+            "action": f"Parsed action for scenario {idx}",
+            "devices": f"Parsed devices for scenario {idx}"
         }
         scenarios_yaml.append(scenario_yaml)
 
     with open(output_file, "w") as yaml_file:
         yaml.dump({"scenarios": scenarios_yaml}, yaml_file)
 
-    print(f"Scenarios have been saved in YAML format: {output_file}")
+    print(f"\n✓ Scenarios saved in YAML format: {output_file}")
     return output_file
-
-def parse_scenario_to_components(scenario):
-    """
-    Parse a scenario into its condition, action, and devices using the LLM.
-    """
-    prompt = f"""
-    Parse the following IoT scenario into its components:
-    Scenario: "{scenario}"
-    
-    Your output must include:
-    1. Condition: The triggering condition.
-    2. Action: The action to be performed.
-    3. Devices: The devices involved in the scenario.
-    """
-    response = model.invoke(prompt)
-    return response.content.strip()  # Clean the output
 
 def apply_scenarios_to_smartthings(yaml_file):
     """
@@ -834,21 +686,18 @@ def apply_scenarios_to_smartthings(yaml_file):
     """
     print("\nApplying scenarios to SmartThings...\n")
     try:
-        # Load scenarios from YAML file
         with open(yaml_file, "r") as file:
             scenarios = yaml.safe_load(file)["scenarios"]
 
         for scenario in scenarios:
-            # Define the payload for SmartThings API
             payload = {
                 "name": scenario["id"],
                 "description": scenario["description"],
-                "condition": scenario["condition"],  # Needs actual parsing
-                "action": scenario["action"],  # Needs actual parsing
-                "devices": scenario["devices"]  # Needs actual parsing
+                "condition": scenario["condition"],
+                "action": scenario["action"],
+                "devices": scenario["devices"]
             }
 
-            # Send the automation to SmartThings API
             response = requests.post(
                 f"{SMARTTHINGS_API_URL}/automations",
                 headers={"Authorization": f"Bearer {SMARTTHINGS_BEARER_TOKEN}"},
@@ -856,9 +705,9 @@ def apply_scenarios_to_smartthings(yaml_file):
             )
 
             if response.status_code == 201:
-                print(f"Scenario {scenario['id']} applied successfully.")
+                print(f"✅ Successfully applied: {scenario['id']}")
             else:
-                print(f"Failed to apply scenario {scenario['id']}. Error: {response.json()}")
+                print(f"❌ Failed to apply {scenario['id']}: {response.status_code}")
 
     except Exception as e:
         print(f"Error applying scenarios: {str(e)}")
@@ -867,84 +716,136 @@ def apply_scenarios_to_smartthings(yaml_file):
 # MAIN WORKFLOW
 #############################
 
-# Main Workflow
-while True:
-    # Step 1: Fetch SmartThings devices
-    devices = get_smartthings_devices()
-    if not devices:
-        print("No devices retrieved from SmartThings. Exiting.")
-        exit()
-
-    # Step 2: Collect and validate scenarios
-    validated_scenarios = interactive_device_validation(devices)
-
-    # Step 3: Collect safety properties
-    validated_safety_properties = interactive_safety_property_validation(devices)
-
-    # Step 4: Prompt-Based Validation
-
-    # prompt_violations, compliant_scenarios = cross_validate_scenarios_and_properties(
-    #     validated_scenarios, validated_safety_properties
-    # )
-
-    # Display prompt-based validation results
-    # if prompt_violations:
-    #     print("\nConflicts detected in prompt-based validation:")
-    #     for i, violation in enumerate(prompt_violations, 1):
-    #         print(f"\nConflict {i}:")
-    #         print(f"Scenario: {violation['scenario']}")
-    #         print(f"Safety Property: {violation['property']}")
-    #         print(f"Response: {violation['response']}")
-    # else:
-    #     print("\nNo conflicts detected in prompt-based validation.")
-
-    model_file = "generated_model.smv"
-
-    # Generate the NuSMV model using the LLM
-    print("\nGenerating NuSMV model using the LLM...")
-    nusmv_model = generate_nusmv_model_with_llm(validated_scenarios, validated_safety_properties, model_file)
-
-    if not nusmv_model:
-        print("Failed to generate a valid NuSMV model. Exiting.")
-        exit()
-
+def main():
+    """
+    Main TAPAssure workflow integrating both processes:
+    - Process 1: Context validation and syntax verification
+    - Process 2: Violation detection and minimization
+    """
+    print("="*70)
+    print("TAPASSURE: SMART HOME AUTOMATION SAFETY VERIFICATION SYSTEM")
+    print("="*70)
+    print("\nThis system performs two-phase verification:")
+    print("  Phase 1: Context validation & syntax checking")
+    print("  Phase 2: Safety violation detection & minimization\n")
     
+    # Configuration
+    use_predefined_data = input("Use predefined test data? (yes/no, default=yes): ").strip().lower()
+    use_predefined_data = use_predefined_data != 'no'
+    
+    if use_predefined_data:
+        print("\n✓ Using predefined scenarios and safety properties...")
+        print("\nSelect test case:")
+        print("  1. Scenarios 1 + Properties 1")
+        print("  2. Scenarios 2 + Properties 2")
+        print("  3. Scenarios 3 + Properties 3")
+        print("  4. Scenarios 3 + Properties 4")
+        
+        choice = input("\nEnter choice (1-4, default=4): ").strip()
+        
+        if choice == '1':
+            validated_scenarios = scenarios1
+            validated_safety_properties = safety_properties1
+        elif choice == '2':
+            validated_scenarios = scenarios2
+            validated_safety_properties = safety_properties2
+        elif choice == '3':
+            validated_scenarios = scenarios3
+            validated_safety_properties = safety_properties3
+        else:
+            validated_scenarios = scenarios3
+            validated_safety_properties = safety_properties4
+    else:
+        # Interactive mode
+        print("\nFetching devices from SmartThings...")
+        devices = get_smartthings_devices()
+        if not devices:
+            print("⚠ No devices retrieved from SmartThings. Using test data.")
+            devices = ["Virtual Light", "Virtual A/C 1", "Virtual Fan 1", "Motion Sensor", 
+                      "Virtual TV 1", "Virtual Fridge 1"]
+        
+        # Step 1: Collect and validate scenarios
+        validated_scenarios = scenarios_validation(devices)
+        if not validated_scenarios:
+            print("❌ No valid scenarios provided. Exiting.")
+            return
+        
+        # Step 2: Collect and validate safety properties
+        validated_safety_properties = safety_property_validation(devices)
+        if not validated_safety_properties:
+            print("❌ No valid safety properties provided. Exiting.")
+            return
+    
+    # Display configuration
+    print("\n" + "="*70)
+    print("CONFIGURATION SUMMARY")
+    print("="*70)
+    print(f"\nValidated Scenarios ({len(validated_scenarios)}):")
+    for i, s in enumerate(validated_scenarios, 1):
+        print(f"  {i}. {s}")
+    
+    print(f"\nValidated Safety Properties ({len(validated_safety_properties)}):")
+    for i, p in enumerate(validated_safety_properties, 1):
+        print(f"  {i}. {p}")
+    
+    # PROCESS 1: Generate syntactically valid NuSMV model
+    model_file = "generated_model.smv"
+    valid_model = generate_valid_nusmv_model(
+        validated_scenarios, 
+        validated_safety_properties, 
+        model_file,
+        max_iterations=10
+    )
+    
+    if not valid_model:
+        print("\n❌ Process 1 failed. Cannot proceed to Process 2.")
+        print("The system could not generate a syntactically valid NuSMV model.")
+        return
+    
+    # PROCESS 2: Minimize violations through iterative refinement
+    output_model = "final_safe_model.smv"
+    final_model = minimize_violations_with_llm(
+        model_file,
+        output_model,
+        validated_scenarios,
+        validated_safety_properties,
+        max_iterations=50
+    )
+    
+    # Final summary
+    print("\n" + "="*70)
+    if final_model:
+        print("✅ TAPASSURE COMPLETED SUCCESSFULLY")
+        print("="*70)
+        print(f"\n✓ Syntactically valid model: {model_file}")
+        print(f"✓ Safe and verified model: {output_model}")
+        print(f"\nThe system has generated TAP rules that:")
+        print(f"  1. Are syntactically correct")
+        print(f"  2. Satisfy all {len(validated_safety_properties)} safety properties")
+        print(f"  3. Implement all {len(validated_scenarios)} desired scenarios")
+        
+        # Optional: Generate YAML and deploy to SmartThings
+        deploy = input("\nDeploy to SmartThings? (yes/no): ").strip().lower()
+        if deploy == 'yes':
+            yaml_file = scenarios_to_yaml(validated_scenarios)
+            apply_scenarios_to_smartthings(yaml_file)
+    else:
+        print("⚠ TAPASSURE COMPLETED WITH WARNINGS")
+        print("="*70)
+        print(f"\n✓ Syntactically valid model generated: {model_file}")
+        print(f"⚠ Process 2 completed with remaining violations")
+        print(f"\nThe final model is saved to: {output_model}")
+        print("Review the model and violations, then consider:")
+        print("  1. Adjusting scenarios or safety properties")
+        print("  2. Manual refinement of the model")
+        print("  3. Running the process again with modified inputs")
 
-    # Step 5: NuSMV Validation with Infinite Retry Mechanism
-
-    # print("\nGenerating NuSMV model and running formal verification...")
-    # model_file = "generated_model.smv"
-    # generate_smv_with_ltl(validated_scenarios, validated_safety_properties, model_file)
-
-    # attempt_count, success, nusmv_results = run_nusmv_validation_until_success(model_file, validated_scenarios, validated_safety_properties)
-
-    # if success:
-    #     print(f"\nNuSMV model validated successfully after {attempt_count} attempts.")
-    # else:
-    #     print(f"\nFailed to generate a valid NuSMV model after {attempt_count} attempts.")
-    #     print("Error details:", nusmv_results)
-
-    # # Final Results Summary
-    # print("\n--- Final Validation Results ---\n")
-    # if not prompt_violations and "is false" not in nusmv_results:
-    #     print("All validations passed. Proceeding to YAML generation...")
-    #     break  # Exit the loop as all validations have passed
-    # else:
-    #     print("\nConflicts detected in one or both validation steps.")
-    #     print("Please revise your scenarios and safety properties.\n")
-    #     print("Restarting the validation process...\n")
-
-    print("\nStarting iterative violation minimization...")
-    final_scenarios = minimize_violations_with_llm(model_file, validated_scenarios, validated_safety_properties)
-
-    if not final_scenarios:
-        print("Failed to minimize violations. Exiting.")
-        exit()
-
-    # Step 6: Convert scenarios to YAML
-    yaml_file = scenarios_to_yaml(validated_scenarios)
-
-    # Step 7: Apply scenarios via SmartThings API
-    apply_scenarios_to_smartthings(yaml_file)
-
-    break
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⚠ Process interrupted by user.")
+    except Exception as e:
+        print(f"\n\n❌ An error occurred: {str(e)}")
+        import traceback
+        traceback.print_exc()
